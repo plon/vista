@@ -1,5 +1,6 @@
 import Foundation
 
+// MARK: - Errors
 enum GeminiError: Error {
     case uploadFailed(String)
     case generateContentFailed(String)
@@ -8,6 +9,7 @@ enum GeminiError: Error {
     case noTextDetected
 }
 
+// MARK: - Models
 enum GeminiModel: String, CaseIterable {
     case pro = "gemini-2.0-pro-exp-02-05"
     case flashLite = "gemini-2.0-flash-lite-preview-02-05"
@@ -21,36 +23,36 @@ enum GeminiModel: String, CaseIterable {
         }
     }
 
-    static var `default`: GeminiModel {
-        .flash
-    }
+    static var `default`: GeminiModel { .flash }
 }
 
+// MARK: - Response Types
 struct FileUploadResponse: Codable {
-    struct File: Codable {
+    let file: FileInfo
+
+    struct FileInfo: Codable {
         let name: String
         let uri: String
         let mimeType: String
         let sizeBytes: String
         let state: String
     }
-    let file: File
 }
 
 struct GenerationResponse: Codable {
     let candidates: [Candidate]
-}
 
-struct Candidate: Codable {
-    let content: Content
-}
+    struct Candidate: Codable {
+        let content: ContentParts
 
-struct Content: Codable {
-    let parts: [Part]
-}
+        struct ContentParts: Codable {
+            let parts: [TextPart]
 
-struct Part: Codable {
-    let text: String
+            struct TextPart: Codable {
+                let text: String
+            }
+        }
+    }
 }
 
 struct ExtractedTextResponse: Codable {
@@ -58,56 +60,85 @@ struct ExtractedTextResponse: Codable {
     let hasText: Bool
 }
 
-class GeminiClient {
+// MARK: - GeminiClient
+final class GeminiClient {
+    // MARK: - Properties
     private let apiKey: String
     private var model: String
+    private let session: URLSession
 
-    init(apiKey: String = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "") {
-        self.apiKey = apiKey
-        self.model = GeminiModel.default.rawValue
+    // MARK: - Constants
+    private enum Constants {
+        static let baseURL = "https://generativelanguage.googleapis.com"
+        static let uploadEndpoint = "/upload/v1beta/files"
+        static let generateEndpoint = "/v1beta/models"
+        static let mimeType = "image/png"
     }
 
+    // MARK: - Initialization
+    init(
+        apiKey: String = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "",
+        session: URLSession = .shared
+    ) {
+        self.apiKey = apiKey
+        self.model = GeminiModel.default.rawValue
+        self.session = session
+    }
+
+    // MARK: - Public Methods
     func setModel(_ model: GeminiModel) {
         self.model = model.rawValue
     }
 
     func processImage(_ imageData: Data) async throws -> String {
         let fileUri = try await uploadImage(imageData)
-        print("File URI received: \(fileUri)")  // Debug print
         return try await generateContent(fileUri: fileUri)
     }
 
+    // MARK: - Private Methods
     private func uploadImage(_ imageData: Data) async throws -> String {
-        let startURL = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=\(apiKey)"
+        let startRequest = try makeUploadStartRequest(imageData: imageData)
+        let uploadURL = try await getUploadURL(from: startRequest)
+        return try await performUpload(imageData: imageData, to: uploadURL)
+    }
 
-        var startRequest = URLRequest(url: URL(string: startURL)!)
-        startRequest.httpMethod = "POST"
-        startRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        startRequest.setValue("resumable", forHTTPHeaderField: "X-Goog-Upload-Protocol")
-        startRequest.setValue("start", forHTTPHeaderField: "X-Goog-Upload-Command")
-        startRequest.setValue(
+    private func makeUploadStartRequest(imageData: Data) throws -> URLRequest {
+        let url = URL(string: Constants.baseURL + Constants.uploadEndpoint + "?key=\(apiKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("resumable", forHTTPHeaderField: "X-Goog-Upload-Protocol")
+        request.setValue("start", forHTTPHeaderField: "X-Goog-Upload-Command")
+        request.setValue(
             "\(imageData.count)", forHTTPHeaderField: "X-Goog-Upload-Header-Content-Length")
-        startRequest.setValue("image/png", forHTTPHeaderField: "X-Goog-Upload-Header-Content-Type")
+        request.setValue(
+            Constants.mimeType, forHTTPHeaderField: "X-Goog-Upload-Header-Content-Type")
 
         let metadata = ["file": ["display_name": "image.png"]]
-        startRequest.httpBody = try JSONSerialization.data(withJSONObject: metadata)
+        request.httpBody = try JSONSerialization.data(withJSONObject: metadata)
 
-        let (_, startResponse) = try await URLSession.shared.data(for: startRequest)
+        return request
+    }
 
-        guard let httpResponse = startResponse as? HTTPURLResponse,
+    private func getUploadURL(from request: URLRequest) async throws -> URL {
+        let (_, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
             let uploadURL = httpResponse.value(forHTTPHeaderField: "X-Goog-Upload-URL")
         else {
             throw GeminiError.uploadFailed("Failed to get upload URL")
         }
+        return URL(string: uploadURL)!
+    }
 
-        var uploadRequest = URLRequest(url: URL(string: uploadURL)!)
-        uploadRequest.httpMethod = "POST"
-        uploadRequest.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
-        uploadRequest.setValue("0", forHTTPHeaderField: "X-Goog-Upload-Offset")
-        uploadRequest.setValue("upload, finalize", forHTTPHeaderField: "X-Goog-Upload-Command")
-        uploadRequest.httpBody = imageData
+    private func performUpload(imageData: Data, to uploadURL: URL) async throws -> String {
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "POST"
+        request.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
+        request.setValue("0", forHTTPHeaderField: "X-Goog-Upload-Offset")
+        request.setValue("upload, finalize", forHTTPHeaderField: "X-Goog-Upload-Command")
+        request.httpBody = imageData
 
-        let (data, response) = try await URLSession.shared.data(for: uploadRequest)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
             (200...299).contains(httpResponse.statusCode)
@@ -116,18 +147,34 @@ class GeminiClient {
                 "Upload failed with status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
         }
 
-        guard let uploadResponse = try? JSONDecoder().decode(FileUploadResponse.self, from: data)
-        else {
-            throw GeminiError.uploadFailed("Invalid upload response")
-        }
-
+        let uploadResponse = try JSONDecoder().decode(FileUploadResponse.self, from: data)
         return uploadResponse.file.uri
     }
 
     private func generateContent(fileUri: String) async throws -> String {
-        let generateURL =
-            "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
+        let url = URL(
+            string: Constants.baseURL + Constants.generateEndpoint
+                + "/\(model):generateContent?key=\(apiKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try makeGenerationRequestBody(fileUri: fileUri)
 
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+            (200...299).contains(httpResponse.statusCode)
+        else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw GeminiError.generateContentFailed(
+                "Generation failed with status: \((response as? HTTPURLResponse)?.statusCode ?? -1), Error: \(errorMessage)"
+            )
+        }
+
+        return try parseGenerationResponse(from: data)
+    }
+
+    private func makeGenerationRequestBody(fileUri: String) throws -> Data {
         let requestBody: [String: Any] = [
             "contents": [
                 [
@@ -138,7 +185,7 @@ class GeminiClient {
                         ],
                         [
                             "file_data": [
-                                "mime_type": "image/png",
+                                "mime_type": Constants.mimeType,
                                 "file_uri": fileUri,
                             ]
                         ],
@@ -154,52 +201,29 @@ class GeminiClient {
                 "responseSchema": [
                     "type": "object",
                     "properties": [
-                        "extractedText": [
-                            "type": "string"
-                        ],
-                        "hasText": [
-                            "type": "boolean"
-                        ],
+                        "extractedText": ["type": "string"],
+                        "hasText": ["type": "boolean"],
                     ],
                     "required": ["extractedText", "hasText"],
                 ],
             ],
         ]
 
-        var request = URLRequest(url: URL(string: generateURL)!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        return try JSONSerialization.data(withJSONObject: requestBody)
+    }
 
-        let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
-        request.httpBody = jsonData
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-            (200...299).contains(httpResponse.statusCode)
-        else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw GeminiError.generateContentFailed(
-                "Generation failed with status: \((response as? HTTPURLResponse)?.statusCode ?? -1), Error: \(errorMessage)"
-            )
-        }
-
-        guard
-            let candidateResponse = try? JSONDecoder().decode(GenerationResponse.self, from: data),
-            let firstPartText = candidateResponse.candidates.first?.content.parts.first?.text
-        else {
+    private func parseGenerationResponse(from data: Data) throws -> String {
+        let response = try JSONDecoder().decode(GenerationResponse.self, from: data)
+        guard let firstPartText = response.candidates.first?.content.parts.first?.text else {
             throw GeminiError.invalidJSON
         }
 
-        guard
-            let extractedResponse = try? JSONDecoder().decode(
-                ExtractedTextResponse.self,
-                from: firstPartText.data(using: .utf8) ?? Data())
-        else {
-            throw GeminiError.invalidJSON
-        }
+        let extractedResponse = try JSONDecoder().decode(
+            ExtractedTextResponse.self,
+            from: firstPartText.data(using: .utf8) ?? Data()
+        )
 
-        if !extractedResponse.hasText {
+        guard extractedResponse.hasText else {
             throw GeminiError.noTextDetected
         }
 
@@ -207,7 +231,7 @@ class GeminiClient {
     }
 }
 
-// Extension for testing
+// MARK: - Preview Support
 extension GeminiClient {
     static func preview() -> GeminiClient {
         GeminiClient(apiKey: "dummy-key")
