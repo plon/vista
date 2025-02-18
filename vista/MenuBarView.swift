@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
+    @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
     @StateObject private var screenshotManager = ScreenshotManager()
     @State private var testResult: String = ""
     @State private var isProcessing = false
@@ -18,6 +19,14 @@ struct MenuBarView: View {
 
             Divider()
 
+            Picker("Model", selection: $selectedModel) {
+                ForEach(GeminiModel.allCases, id: \.self) { model in
+                    Text(model.displayName).tag(model)
+                }
+            }
+            .onChange(of: selectedModel) { newModel in
+                geminiClient.setModel(newModel)
+            }
             Button("Test with Sample Image") {
                 testGeminiClient()
             }

@@ -8,7 +8,24 @@ enum GeminiError: Error {
     case noTextDetected
 }
 
-// Response models
+enum GeminiModel: String, CaseIterable {
+    case pro = "gemini-2.0-pro-exp-02-05"
+    case flashLite = "gemini-2.0-flash-lite-preview-02-05"
+    case flash = "gemini-2.0-flash"
+
+    var displayName: String {
+        switch self {
+        case .pro: return "Gemini 2.0 Pro Experimental 02-05"
+        case .flashLite: return "Gemini 2.0 Flash-Lite Preview 02-05"
+        case .flash: return "Gemini 2.0 Flash"
+        }
+    }
+
+    static var `default`: GeminiModel {
+        .flash
+    }
+}
+
 struct FileUploadResponse: Codable {
     struct File: Codable {
         let name: String
@@ -43,9 +60,15 @@ struct ExtractedTextResponse: Codable {
 
 class GeminiClient {
     private let apiKey: String
+    private var model: String
 
     init(apiKey: String = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "") {
         self.apiKey = apiKey
+        self.model = GeminiModel.default.rawValue
+    }
+
+    func setModel(_ model: GeminiModel) {
+        self.model = model.rawValue
     }
 
     func processImage(_ imageData: Data) async throws -> String {
@@ -103,7 +126,7 @@ class GeminiClient {
 
     private func generateContent(fileUri: String) async throws -> String {
         let generateURL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\(apiKey)"
+            "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
 
         let requestBody: [String: Any] = [
             "contents": [
