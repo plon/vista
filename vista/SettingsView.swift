@@ -7,13 +7,13 @@ class SettingsWindow {
     func show() {
         if window == nil {
             window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 375, height: 300),
+                contentRect: NSRect(x: 0, y: 0, width: 375, height: 200),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
 
-            window?.title = "Settings"
+            window?.title = "Vista Settings"
             window?.contentView = NSHostingView(rootView: SettingsContainerView())
             window?.isReleasedWhenClosed = false
             window?.center()
@@ -31,49 +31,28 @@ struct SettingsContainerView: View {
         TabView(selection: $selectedTab) {
             GeneralSettingsView()
                 .tabItem {
-                    Label("General", systemImage: "switch.on.square.fill")
+                    Label("General", systemImage: "gear")
                 }
                 .tag(0)
 
             ShortcutSettingsView()
                 .tabItem {
-                    Label("Shortcuts", systemImage: "command.square.fill")
+                    Label("Shortcuts", systemImage: "keyboard")
                 }
                 .tag(1)
-
-            AboutView()
-                .tabItem {
-                    Label("About", systemImage: "v.square.fill")
-                }
-                .tag(2)
         }
-        .tabViewStyle(.automatic)
         .padding()
-        .frame(width: 375, height: 300)
+        .frame(width: 375, height: 200)
     }
 }
 
 struct GeneralSettingsView: View {
-    @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @AppStorage("disableStatusPopup") private var disableStatusPopup = false
+    @AppStorage("popupEnabled") private var popupEnabled = true
 
     var body: some View {
         Form {
-            HStack {
-                Image(systemName: "gearshape.fill")
-                Text("Launch at login")
-                Spacer()
-                Toggle("", isOn: $launchAtLogin)
-            }
-            
-            HStack {
-                Image(systemName: "bell.fill")
-                Text("Disable status popup")
-                Spacer()
-                Toggle("", isOn: $disableStatusPopup)
-            }
+            Toggle("Show status popup", isOn: $popupEnabled)
         }
-        .formStyle(.grouped)
     }
 }
 
@@ -83,14 +62,6 @@ struct ShortcutSettingsView: View {
     var body: some View {
         Form {
             Toggle("Enable keyboard shortcut (⌘⇧2)", isOn: $shortcutEnabled)
-        }
-    }
-}
-
-struct AboutView: View {
-    var body: some View {
-        VStack {
-            Text("About content here")
         }
     }
 }

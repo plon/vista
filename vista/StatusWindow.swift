@@ -23,7 +23,7 @@ class StatusWindowController {
             let rect = screen.frame
             let point = NSPoint(
                 x: rect.midX - 50,
-                y: rect.midY - 50
+                y: rect.height * 0.25 - 50
             )
             window?.setFrameOrigin(point)
         }
