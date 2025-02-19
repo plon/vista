@@ -36,7 +36,8 @@ class ScreenshotManager: ObservableObject {
             try task.run()
             task.waitUntilExit()
 
-            if task.terminationStatus == 0 {
+            // Only try to process if the file exists
+            if FileManager.default.fileExists(atPath: tempFile.path) {
                 if let imageData = try? Data(contentsOf: tempFile) {
                     processScreenshotData(imageData)
                     try? FileManager.default.removeItem(at: tempFile)
@@ -44,7 +45,8 @@ class ScreenshotManager: ObservableObject {
                     statusWindow.show(withStatus: .error("Failed to read screenshot data"))
                 }
             } else {
-                statusWindow.show(withStatus: .error("Screenshot cancelled"))
+                // If no file exists, it means the user cancelled
+                statusWindow.show(withStatus: .cancelled)
             }
         } catch {
             print("Screenshot error: \(error.localizedDescription)")

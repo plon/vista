@@ -38,6 +38,8 @@ class StatusWindowController {
         switch status {
         case .success:
             autoHide(after: 1.0)
+        case .cancelled:
+            autoHide(after: 1.0)
         case .error(let message):
             let duration = message.contains("No text detected") ? 2.0 : 2.0
             autoHide(after: duration)
@@ -128,6 +130,8 @@ private struct StatusOverlay: View {
             return "Processing"
         case .success:
             return "Copied"
+        case .cancelled:
+            return "Cancelled"
         case .none:
             return nil
         }
@@ -149,6 +153,9 @@ private struct StatusOverlay: View {
                     }
             case .success:
                 Image(systemName: "doc.on.clipboard")
+            case .cancelled:
+                Image(systemName: "xmark")
+                    .foregroundStyle(.secondary)
             case .error(let message):
                 if message.contains("No text detected") {
                     Image(systemName: "text.magnifyingglass")
