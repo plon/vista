@@ -1,61 +1,89 @@
 import Combine
 import SwiftUI
 
-enum ProcessingStatus {
-    case none
-    case processing
-    case success
-    case error(String)
-}
-
 class ScreenshotManager: ObservableObject {
     @Published var status: ProcessingStatus = .none
-    private let geminiClient = GeminiClient()
+    private let geminiClient = GeminiClient(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
+    private let statusWindow = StatusWindowController()
+
+    func updateModel(_ model: GeminiModel) {
+        geminiClient.setModel(model)
+    }
+
+    private var hasScreenRecordingPermission: Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+
+    private func requestScreenRecordingPermission() {
+        CGRequestScreenCaptureAccess()
+    }
 
     func initiateScreenshot() {
+        if !hasScreenRecordingPermission {
+            requestScreenRecordingPermission()
+            statusWindow.show(withStatus: .error("Screen Recording permission is required"))
+            return
+        }
+
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "vista_temp_screenshot.png")
+
         let task = Process()
         task.launchPath = "/usr/sbin/screencapture"
-        task.arguments = ["-i", "-c"]  // Interactive mode, copy to clipboard
+        task.arguments = ["-i", tempFile.path]
 
         do {
             try task.run()
             task.waitUntilExit()
 
             if task.terminationStatus == 0 {
-                processScreenshot()
+                if let imageData = try? Data(contentsOf: tempFile) {
+                    processScreenshotData(imageData)
+                    try? FileManager.default.removeItem(at: tempFile)
+                } else {
+                    statusWindow.show(withStatus: .error("Failed to read screenshot data"))
+                }
+            } else {
+                statusWindow.show(withStatus: .error("Screenshot cancelled"))
             }
         } catch {
-            status = .error("Failed to capture screenshot")
+            print("Screenshot error: \(error.localizedDescription)")
+            statusWindow.show(
+                withStatus: .error("Failed to capture screenshot: \(error.localizedDescription)"))
         }
     }
 
-    private func processScreenshot() {
-        guard let pasteboard = NSPasteboard.general.pasteboardItems?.first,
-            let imageData = pasteboard.data(forType: .png)
-        else {
-            status = .error("No screenshot data found")
-            return
-        }
-
-        status = .processing
+    private func processScreenshotData(_ imageData: Data) {
+        statusWindow.show(withStatus: .processing)
 
         Task {
             do {
                 let extractedText = try await geminiClient.processImage(imageData)
 
-                DispatchQueue.main.async {
+                await MainActor.run {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(extractedText, forType: .string)
                     self.status = .success
-
-                    // Auto-dismiss after 2 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        self.status = .none
-                    }
+                    self.statusWindow.show(withStatus: .success)
+                }
+            } catch GeminiError.noTextDetected {
+                await MainActor.run {
+                    self.statusWindow.show(withStatus: .error("No text detected in image"))
+                }
+            } catch GeminiError.uploadFailed(let message) {
+                await MainActor.run {
+                    self.statusWindow.show(withStatus: .error("Upload failed: \(message)"))
+                }
+            } catch GeminiError.generateContentFailed(let message) {
+                await MainActor.run {
+                    self.statusWindow.show(
+                        withStatus: .error("Content generation failed: \(message)"))
                 }
             } catch {
-                DispatchQueue.main.async {
-                    self.status = .error(error.localizedDescription)
+                print("Processing error: \(error)")
+                await MainActor.run {
+                    self.statusWindow.show(
+                        withStatus: .error("Processing failed: \(error.localizedDescription)"))
                 }
             }
         }

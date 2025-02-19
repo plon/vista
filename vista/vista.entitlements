@@ -10,5 +10,17 @@
     <array>
         <string>com.apple.screencapture</string>
     </array>
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>com.apple.screencapture</string>
+    </array>
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+    <key>com.apple.security.temporary-exception.apple-events:before=2025-12-31</key>
+    <array>
+        <string>com.apple.systemevents</string>
+    </array>
+    <key>com.apple.security.screen-recording</key>
+    <true/>
 </dict>
 </plist>
