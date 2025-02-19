@@ -62,7 +62,7 @@ class StatusWindowController {
         window?.level = .statusBar
         window?.isReleasedWhenClosed = false
         window?.ignoresMouseEvents = true
-        window?.appearance = NSAppearance(named: .vibrantDark)
+        //window?.appearance = NSAppearance(named: .vibrantDark)
         window?.collectionBehavior = [.transient, .ignoresCycle]
         window?.alphaValue = 0
     }
@@ -114,7 +114,7 @@ private struct StatusOverlay: View {
         .frame(width: 100, height: 100)
         .background {
             RoundedRectangle(cornerRadius: 13)
-                .fill(.thickMaterial)
+                .fill(.regularMaterial)
         }
     }
 
