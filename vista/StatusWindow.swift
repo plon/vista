@@ -49,8 +49,10 @@ class StatusWindowController {
         switch status {
         case .success:
             autoHide(after: 1.0)
-        case .error:
-            autoHide(after: 2.0)
+        case .error(let message):
+            // Show longer duration for "no text detected" message
+            let duration = message.contains("No text detected") ? 2.0 : 2.0
+            autoHide(after: duration)
         default:
             break
         }
@@ -86,9 +88,19 @@ private struct StatusOverlay: View {
 
     var body: some View {
         ZStack {
-            statusIcon
-                .font(.system(size: 32))
-                .symbolEffect(.bounce, value: status)
+            VStack(spacing: 8) {
+                statusIcon
+                    .font(.system(size: 32))
+                    .symbolEffect(.bounce, value: status)
+
+                if let message = statusMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: 100, height: 100)
         .background {
@@ -97,6 +109,23 @@ private struct StatusOverlay: View {
                 .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
         }
         .transition(.opacity)
+    }
+
+    private var statusMessage: String? {
+        switch status {
+        case .error(let message):
+            if message.contains("No text detected") {
+                return "No text found"
+            } else {
+                return "Error"
+            }
+        case .processing:
+            return "Processing"
+        case .success:
+            return "Copied"
+        case .none:
+            return nil
+        }
     }
 
     private var statusIcon: some View {
@@ -117,9 +146,14 @@ private struct StatusOverlay: View {
             case .success:
                 Image(systemName: "doc.on.clipboard")
                     .foregroundStyle(.secondary)
-            case .error:
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
+            case .error(let message):
+                if message.contains("No text detected") {
+                    Image(systemName: "text.magnifyingglass")
+                        .foregroundStyle(.orange)
+                } else {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                }
             case .none:
                 EmptyView()
             }
@@ -131,6 +165,7 @@ private struct StatusOverlay: View {
     Group {
         StatusWindowView(status: .processing)
         StatusWindowView(status: .success)
-        StatusWindowView(status: .error("Error"))
+        StatusWindowView(status: .error("Error occurred"))
+        StatusWindowView(status: .error("No text detected in image"))
     }
 }

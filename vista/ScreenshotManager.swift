@@ -53,7 +53,7 @@ class ScreenshotManager: ObservableObject {
         }
     }
 
-    private func processScreenshotData(_ imageData: Data) {
+    func processScreenshotData(_ imageData: Data) {
         statusWindow.show(withStatus: .processing)
 
         Task {
@@ -68,20 +68,24 @@ class ScreenshotManager: ObservableObject {
                 }
             } catch GeminiError.noTextDetected {
                 await MainActor.run {
+                    self.status = .error("No text detected")
                     self.statusWindow.show(withStatus: .error("No text detected in image"))
                 }
             } catch GeminiError.uploadFailed(let message) {
                 await MainActor.run {
+                    self.status = .error(message)
                     self.statusWindow.show(withStatus: .error("Upload failed: \(message)"))
                 }
             } catch GeminiError.generateContentFailed(let message) {
                 await MainActor.run {
+                    self.status = .error(message)
                     self.statusWindow.show(
                         withStatus: .error("Content generation failed: \(message)"))
                 }
             } catch {
                 print("Processing error: \(error)")
                 await MainActor.run {
+                    self.status = .error(error.localizedDescription)
                     self.statusWindow.show(
                         withStatus: .error("Processing failed: \(error.localizedDescription)"))
                 }
