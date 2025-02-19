@@ -43,6 +43,12 @@ struct GenerationResponse: Codable {
     }
 }
 
+// Structured response type
+struct ExtractedContent: Codable {
+    let extractedText: String
+    let hasText: Bool
+}
+
 // MARK: - GeminiClient
 final class GeminiClient {
     // MARK: - Properties
@@ -103,6 +109,19 @@ final class GeminiClient {
                 "topK": 40,
                 "topP": 0.95,
                 "maxOutputTokens": 8192,
+                "responseMimeType": "application/json",
+                "responseSchema": [
+                    "type": "object",
+                    "properties": [
+                        "extractedText": [
+                            "type": "string"
+                        ],
+                        "hasText": [
+                            "type": "boolean"
+                        ],
+                    ],
+                    "required": ["extractedText", "hasText"],
+                ],
             ],
         ]
 
@@ -123,9 +142,19 @@ final class GeminiClient {
     // MARK: - Private Methods
     private func parseGenerationResponse(from data: Data) throws -> String {
         let response = try JSONDecoder().decode(GenerationResponse.self, from: data)
-        guard let firstPartText = response.candidates.first?.content.parts.first?.text else {
+        guard let jsonString = response.candidates.first?.content.parts.first?.text else {
             throw GeminiError.invalidJSON
         }
-        return firstPartText
+
+        // Parse the structured JSON response
+        let jsonData = jsonString.data(using: .utf8)!
+        let extractedContent = try JSONDecoder().decode(ExtractedContent.self, from: jsonData)
+
+        // Check if text was detected
+        guard extractedContent.hasText else {
+            throw GeminiError.noTextDetected
+        }
+
+        return extractedContent.extractedText
     }
 }
