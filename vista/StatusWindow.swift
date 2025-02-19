@@ -9,19 +9,7 @@ class StatusWindowController {
         guard popupEnabled else { return }
 
         if window == nil {
-            window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
-                styleMask: [.borderless],
-                backing: .buffered,
-                defer: false
-            )
-
-            window?.backgroundColor = .clear
-            window?.isOpaque = false
-            window?.hasShadow = false
-            window?.level = .statusBar
-            window?.isReleasedWhenClosed = false
-            window?.ignoresMouseEvents = true
+            setupWindow()
         }
 
         let statusView = NSHostingController(
@@ -40,11 +28,12 @@ class StatusWindowController {
             window?.setFrameOrigin(point)
         }
 
+        window?.orderFront(nil)
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             window?.animator().alphaValue = 1
         }
-        window?.orderFront(nil)
 
         switch status {
         case .success:
@@ -55,6 +44,25 @@ class StatusWindowController {
         default:
             break
         }
+    }
+
+    private func setupWindow() {
+        window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        window?.backgroundColor = .clear
+        window?.isOpaque = false
+        window?.hasShadow = false
+        window?.level = .statusBar
+        window?.isReleasedWhenClosed = false
+        window?.ignoresMouseEvents = true
+        window?.appearance = NSAppearance(named: .vibrantDark)
+        window?.collectionBehavior = [.transient, .ignoresCycle]
+        window?.alphaValue = 0
     }
 
     func hide() {
@@ -90,12 +98,12 @@ private struct StatusOverlay: View {
             VStack(spacing: 8) {
                 statusIcon
                     .font(.system(size: 32))
-                    .symbolEffect(.bounce, value: status)
+                    .foregroundStyle(.white)
 
                 if let message = statusMessage {
                     Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -103,10 +111,9 @@ private struct StatusOverlay: View {
         }
         .frame(width: 100, height: 100)
         .background {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 13)
+                .fill(.thickMaterial)
         }
-        .transition(.opacity)
     }
 
     private var statusMessage: String? {
@@ -140,10 +147,8 @@ private struct StatusOverlay: View {
                             isAnimating = true
                         }
                     }
-                    .foregroundStyle(.secondary)
             case .success:
                 Image(systemName: "doc.on.clipboard")
-                    .foregroundStyle(.secondary)
             case .error(let message):
                 if message.contains("No text detected") {
                     Image(systemName: "text.magnifyingglass")
