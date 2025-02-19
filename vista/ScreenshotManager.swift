@@ -3,10 +3,16 @@ import SwiftUI
 
 class ScreenshotManager: ObservableObject {
     @Published var status: ProcessingStatus = .none
-    private let geminiClient = GeminiClient(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
+    @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
+    private lazy var geminiClient = GeminiClient(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
     private let statusWindow = StatusWindowController()
 
+    init() {
+        geminiClient.setModel(selectedModel)
+    }
+
     func updateModel(_ model: GeminiModel) {
+        selectedModel = model
         geminiClient.setModel(model)
     }
 
