@@ -105,7 +105,6 @@ private struct StatusOverlay: View {
         .background {
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
         }
         .transition(.opacity)
     }
