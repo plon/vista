@@ -10,7 +10,12 @@ class KeyboardShortcutManager: ObservableObject {
     init(screenshotManager: ScreenshotManager) {
         self.screenshotManager = screenshotManager
         setupEventHandler()
-        updateShortcutState()
+
+        // Force a clean registration on launch
+        unregisterHotKey()
+        if UserDefaults.standard.bool(forKey: "shortcutEnabled") {
+            registerHotKey()
+        }
 
         NotificationCenter.default.addObserver(
             self,
