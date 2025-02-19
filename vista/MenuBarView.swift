@@ -29,7 +29,10 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
 
             Picker(selection: $selectedModel) {
-                ForEach(GeminiModel.allCases, id: \.self) { model in
+                ForEach(Array(GeminiModel.allCases.enumerated()), id: \.element) { index, model in
+                    if index > 0 {
+                        Divider()
+                    }
                     Label(model.displayName, systemImage: model.iconName)
                         .tag(model)
                 }
