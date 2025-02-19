@@ -37,6 +37,7 @@ struct MenuBarView: View {
             Button("Settings...") {
                 SettingsWindow.shared.show()
             }
+            .keyboardShortcut(",", modifiers: .command)
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
