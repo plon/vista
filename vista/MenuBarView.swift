@@ -14,13 +14,16 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button("Take Screenshot (⌘⇧2)") {
+            Button {
                 screenshotManager.initiateScreenshot()
+            } label: {
+                Text("Take Screenshot")
             }
+            .keyboardShortcut("2", modifiers: [.command, .shift])
 
             Divider()
 
-            Picker("Model", selection: $selectedModel) {
+            Picker("Vision Model", selection: $selectedModel) {
                 ForEach(GeminiModel.allCases, id: \.self) { model in
                     Text(model.displayName).tag(model)
                 }
@@ -38,6 +41,7 @@ struct MenuBarView: View {
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }
+            .keyboardShortcut("q", modifiers: .command)
         }
         .padding()
         .frame(width: 300)
