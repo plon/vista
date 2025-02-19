@@ -17,27 +17,42 @@ struct MenuBarView: View {
             Button {
                 screenshotManager.initiateScreenshot()
             } label: {
-                Text("Take Screenshot")
+                Label("Take Screenshot", systemImage: "camera.fill")
             }
+            .labelStyle(.titleAndIcon)
             .keyboardShortcut("2", modifiers: [.command, .shift])
 
             Divider()
 
-            Picker("Vision Model", selection: $selectedModel) {
+            Text("Configure:")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Picker(selection: $selectedModel) {
                 ForEach(GeminiModel.allCases, id: \.self) { model in
-                    Text(model.displayName).tag(model)
+                    Label(model.displayName, systemImage: model.iconName)
+                        .tag(model)
                 }
+            } label: {
+                Label("Vision Model", systemImage: "sparkles")
             }
+            .labelStyle(.titleAndIcon)
             .onChange(of: selectedModel) { _ in
                 screenshotManager.updateModel(selectedModel)
             }
 
             Divider()
 
+            Text("Version: 0.1.0-alpha")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
             Button("Settings...") {
                 SettingsWindow.shared.show()
             }
             .keyboardShortcut(",", modifiers: .command)
+
+            Divider()
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)

@@ -23,6 +23,14 @@ enum GeminiModel: String, CaseIterable {
         }
     }
 
+    var iconName: String {
+        switch self {
+        case .pro: return "brain.fill"  // Most advanced/capable
+        case .flashLite: return "bolt.fill"  // Fastest/smallest
+        case .flash: return "star.fill"  // Standard/balanced
+        }
+    }
+
     static var `default`: GeminiModel { .flash }
 }
 
