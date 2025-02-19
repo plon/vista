@@ -1,14 +1,13 @@
 import SwiftUI
 
 struct MenuBarView: View {
+    @AppStorage("shortcutEnabled") private var shortcutEnabled = true
     @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
     @StateObject private var screenshotManager = ScreenshotManager()
     @StateObject private var keyboardManager: KeyboardShortcutManager
 
     init() {
-        // Create manager first without StateObject wrapper
         let manager = ScreenshotManager()
-        // Then initialize keyboardManager with that instance
         _keyboardManager = StateObject(
             wrappedValue: KeyboardShortcutManager(screenshotManager: manager))
     }
@@ -27,11 +26,14 @@ struct MenuBarView: View {
                 }
             }
             .onChange(of: selectedModel) { _ in
-                // Update the model in screenshotManager
                 screenshotManager.updateModel(selectedModel)
             }
 
             Divider()
+
+            Button("Settings...") {
+                SettingsWindow.shared.show()
+            }
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
@@ -40,8 +42,4 @@ struct MenuBarView: View {
         .padding()
         .frame(width: 300)
     }
-}
-
-#Preview {
-    MenuBarView()
 }

@@ -5,6 +5,9 @@ class StatusWindowController {
     private var window: NSWindow?
 
     func show(withStatus status: ProcessingStatus) {
+        @AppStorage("popupEnabled") var popupEnabled = true
+        guard popupEnabled else { return }
+
         if window == nil {
             window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),

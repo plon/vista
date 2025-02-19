@@ -4,26 +4,35 @@ import SwiftUI
 
 class KeyboardShortcutManager: ObservableObject {
     private var eventHandler: EventHandlerRef?
+    private var hotKeyRef: EventHotKeyRef?
     private let screenshotManager: ScreenshotManager
 
     init(screenshotManager: ScreenshotManager) {
         self.screenshotManager = screenshotManager
-        registerShortcut()
+        setupEventHandler()
+        updateShortcutState()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(shortcutSettingChanged),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
     }
 
     deinit {
         if let handler = eventHandler {
             RemoveEventHandler(handler)
         }
+        unregisterHotKey()
     }
 
-    private func registerShortcut() {
+    private func setupEventHandler() {
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: OSType(kEventHotKeyPressed)
         )
 
-        // Install handler
         InstallEventHandler(
             GetApplicationEventTarget(),
             { (_, event, userData) -> OSStatus in
@@ -37,12 +46,14 @@ class KeyboardShortcutManager: ObservableObject {
             Unmanaged.passUnretained(self).toOpaque(),
             &eventHandler
         )
+    }
 
-        // Register hot key (Command + Shift + 2)
+    private func registerHotKey() {
+        unregisterHotKey()
+
         var hotKeyID = EventHotKeyID(signature: OSType("vtsa".fourCharCodeValue), id: 1)
-        var hotKeyRef: EventHotKeyRef?
 
-        RegisterEventHotKey(
+        let status = RegisterEventHotKey(
             UInt32(kVK_ANSI_2),
             UInt32(cmdKey | shiftKey),
             hotKeyID,
@@ -50,6 +61,30 @@ class KeyboardShortcutManager: ObservableObject {
             0,
             &hotKeyRef
         )
+
+        if status != noErr {
+            print("Failed to register hot key")
+        }
+    }
+
+    private func unregisterHotKey() {
+        if let hotKeyRef = hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
+        }
+    }
+
+    @objc private func shortcutSettingChanged() {
+        updateShortcutState()
+    }
+
+    private func updateShortcutState() {
+        let shortcutEnabled = UserDefaults.standard.bool(forKey: "shortcutEnabled")
+        if shortcutEnabled {
+            registerHotKey()
+        } else {
+            unregisterHotKey()
+        }
     }
 
     private func handleKeyboardEvent(_ event: EventRef?) -> OSStatus {
