@@ -3,9 +3,9 @@ import SwiftUI
 
 class StatusWindowController {
     private var window: NSWindow?
+    @AppStorage("popupEnabled") private var popupEnabled = true
 
     func show(withStatus status: ProcessingStatus) {
-        @AppStorage("popupEnabled") var popupEnabled = true
         guard popupEnabled else { return }
 
         if window == nil {
@@ -50,7 +50,6 @@ class StatusWindowController {
         case .success:
             autoHide(after: 1.0)
         case .error(let message):
-            // Show longer duration for "no text detected" message
             let duration = message.contains("No text detected") ? 2.0 : 2.0
             autoHide(after: duration)
         default:
