@@ -8,19 +8,39 @@ struct ShortcutRecorder: View {
     
     var body: some View {
         Button(action: {
-            isRecording = true
-            displayText = "Recording..."
+            isRecording.toggle()
+            if isRecording {
+                displayText = "Recording..."
+            } else {
+                displayText = shortcut?.displayString ?? "Click to record"
+            }
         }) {
-            Text(displayText.isEmpty ? (shortcut?.displayString ?? "Click to record") : displayText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(.textBackgroundColor))
-                )
+            HStack {
+                Text(displayText.isEmpty ? (shortcut?.displayString ?? "Click to record") : displayText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                if shortcut != nil {
+                    Button(action: {
+                        shortcut = nil
+                        displayText = "Click to record"
+                        isRecording = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(.textBackgroundColor))
+            )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Keyboard Shortcut Recorder")
+        .accessibilityHint("Click to record a new keyboard shortcut")
         .onAppear {
             if let shortcut = shortcut {
                 displayText = shortcut.displayString
@@ -67,6 +87,21 @@ struct KeyboardShortcut: Codable, Equatable {
             0x7B: "←", 0x7C: "→", 0x7D: "↓", 0x7E: "↑"
         ]
         return keyMap[keyCode] ?? "?"
+    }
+    
+    static func isValid(keyCode: UInt16, modifierFlags: UInt32) -> Bool {
+        // Require at least one modifier key
+        if modifierFlags == 0 {
+            return false
+        }
+        
+        // Prevent single modifier key shortcuts
+        let modifierKeyCodes: Set<UInt16> = [0x37, 0x38, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F]
+        if modifierKeyCodes.contains(keyCode) {
+            return false
+        }
+        
+        return true
     }
 }
 
@@ -123,30 +158,41 @@ class RecorderView: NSView {
     override func keyDown(with event: NSEvent) {
         guard isRecording else { return }
         
-        // Filter out standalone modifier key presses
-        if !isModifierKeyCode(event.keyCode) {
-            // Convert NSEvent modifiers to Carbon modifiers
-            var carbonFlags: UInt32 = 0
-            let flags = event.modifierFlags
-            
-            if flags.contains(.command) { carbonFlags |= UInt32(cmdKey) }
-            if flags.contains(.shift) { carbonFlags |= UInt32(shiftKey) }
-            if flags.contains(.option) { carbonFlags |= UInt32(optionKey) }
-            if flags.contains(.control) { carbonFlags |= UInt32(controlKey) }
-            
-            // Require at least one modifier key
-            if carbonFlags != 0 {
-                delegate?.didRecordShortcut(
-                    keyCode: UInt16(event.keyCode),
-                    modifierFlags: carbonFlags
-                )
-            }
+        let flags = event.modifierFlags
+        var carbonFlags: UInt32 = 0
+        
+        if flags.contains(.command) { carbonFlags |= UInt32(cmdKey) }
+        if flags.contains(.shift) { carbonFlags |= UInt32(shiftKey) }
+        if flags.contains(.option) { carbonFlags |= UInt32(optionKey) }
+        if flags.contains(.control) { carbonFlags |= UInt32(controlKey) }
+        
+        if KeyboardShortcut.isValid(keyCode: UInt16(event.keyCode), modifierFlags: carbonFlags) {
+            delegate?.didRecordShortcut(
+                keyCode: UInt16(event.keyCode),
+                modifierFlags: carbonFlags
+            )
+        } else {
+            NSSound.beep()
         }
     }
     
-    private func isModifierKeyCode(_ keyCode: UInt16) -> Bool {
-        let modifierKeyCodes: Set<UInt16> = [0x37, 0x38, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F]
-        return modifierKeyCodes.contains(keyCode)
+    override func flagsChanged(with event: NSEvent) {
+        // Provide visual feedback when modifier keys are pressed
+        if isRecording {
+            let flags = event.modifierFlags
+            var str = "Recording: "
+            
+            if flags.contains(.command) { str += "⌘" }
+            if flags.contains(.shift) { str += "⇧" }
+            if flags.contains(.option) { str += "⌥" }
+            if flags.contains(.control) { str += "⌃" }
+            
+            if str == "Recording: " {
+                str = "Recording..."
+            }
+            
+            delegate?.parent.displayText = str
+        }
     }
 }
 

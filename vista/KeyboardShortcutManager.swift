@@ -18,7 +18,7 @@ class KeyboardShortcutManager: ObservableObject {
     
     var currentShortcut: KeyboardShortcut? {
         get {
-            guard let data = customShortcut else { return defaultShortcut }
+            guard let data = customShortcut else { return nil }
             return try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
         }
         set {
@@ -39,6 +39,11 @@ class KeyboardShortcutManager: ObservableObject {
     init(screenshotManager: ScreenshotManager) {
         self.screenshotManager = screenshotManager
         setupEventHandler()
+
+        // Set default shortcut if no custom shortcut exists
+        if customShortcut == nil {
+            currentShortcut = defaultShortcut
+        }
 
         // Force a clean registration on launch
         unregisterHotKey()
@@ -84,7 +89,11 @@ class KeyboardShortcutManager: ObservableObject {
         
         unregisterHotKey()
         
-        let shortcut = currentShortcut ?? defaultShortcut
+        // Only register if we have a shortcut set
+        guard let shortcut = currentShortcut else {
+            return
+        }
+        
         var hotKeyID = EventHotKeyID(signature: OSType("vtsa".fourCharCodeValue), id: 1)
 
         // Use proper Carbon modifier flags format
