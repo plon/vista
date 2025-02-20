@@ -2,47 +2,67 @@ import SwiftUI
 
 class SettingsWindow {
     static let shared = SettingsWindow()
-    private var window: NSWindow?
+    private var windowController: NSWindowController?
 
     func show() {
-        if window == nil {
-            window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 375, height: 200),
-                styleMask: [.titled, .closable],
+        if windowController == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 780, height: 460),
+                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
-
-            window?.title = "Vista Settings"
-            window?.contentView = NSHostingView(rootView: SettingsContainerView())
-            window?.isReleasedWhenClosed = false
-            window?.center()
+            
+            window.titlebarAppearsTransparent = true
+            window.title = ""  // Clear default title
+            window.toolbarStyle = .unified
+            window.contentView = NSHostingView(rootView: SettingsContainerView())
+            window.isReleasedWhenClosed = false
+            window.center() // Center the window on the active screen
+            
+            windowController = NSWindowController(window: window)
         }
 
-        window?.makeKeyAndOrderFront(nil)
+        windowController?.window?.center() // Ensure window is centered even when reshown
+        windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }
 
 struct SettingsContainerView: View {
-    @State private var selectedTab = 0
-
+    @State private var selectedTab = "General"
+    
     var body: some View {
-        TabView(selection: $selectedTab) {
-            GeneralSettingsView()
-                .tabItem {
-                    Label("General", systemImage: "gear")
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            List(selection: $selectedTab) {
+                Label("General", systemImage: "gear")
+                    .tag("General")
+                Label("Shortcuts", systemImage: "keyboard")
+                    .tag("Shortcuts")
+            }
+            .toolbar(removing: .sidebarToggle)
+            .listStyle(.sidebar)
+            .frame(width: 200)
+        } detail: {
+            Group {
+                switch selectedTab {
+                case "General":
+                    GeneralSettingsView()
+                case "Shortcuts":
+                    ShortcutSettingsView()
+                default:
+                    EmptyView()
                 }
-                .tag(0)
-
-            ShortcutSettingsView()
-                .tabItem {
-                    Label("Shortcuts", systemImage: "keyboard")
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Text(selectedTab)
+                        .font(.system(size: 20, weight: .regular))
                 }
-                .tag(1)
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .navigationSplitViewColumnWidth(min: 440, ideal: 440)
         }
-        .padding()
-        .frame(width: 375, height: 200)
     }
 }
 
@@ -51,8 +71,12 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
-            Toggle("Show status popup", isOn: $popupEnabled)
+            Section {
+                Toggle("Show status popup", isOn: $popupEnabled)
+            }
         }
+        .formStyle(.grouped)
+        .padding(.top, -20)
     }
 }
 
