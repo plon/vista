@@ -1,4 +1,5 @@
 import SwiftUI
+import KeyboardShortcuts
 
 class SettingsWindow {
     static let shared = SettingsWindow()
@@ -123,11 +124,8 @@ struct ShortcutSettingsView: View {
                 Toggle("Enable keyboard shortcut", isOn: $shortcutEnabled)
                 
                 if shortcutEnabled {
-                    ShortcutRecorder(shortcut: .init(
-                        get: { keyboardManager.currentShortcut },
-                        set: { keyboardManager.currentShortcut = $0 }
-                    ))
-                    .disabled(!shortcutEnabled)
+                    KeyboardShortcuts.Recorder("Screenshot shortcut:", name: .takeScreenshot)
+                        .disabled(!shortcutEnabled)
                 }
             } header: {
                 Text("Keyboard Shortcut")
