@@ -1,71 +1,51 @@
-import AppKit
 import SwiftUI
 
-class SettingsWindow: NSObject, NSWindowDelegate {
+class SettingsWindow {
     static let shared = SettingsWindow()
     private var windowController: NSWindowController?
+    private var toolbar: NSToolbar?
 
     func show() {
         if windowController == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 780, height: 460),
-                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
 
-            // Add toolbar configuration
-            let toolbar = NSToolbar(identifier: "SettingsToolbar")
-            toolbar.showsBaselineSeparator = false
-            toolbar.allowsUserCustomization = false
-            toolbar.autosavesConfiguration = false
+            // Configure toolbar
+            toolbar = NSToolbar(identifier: "SettingsToolbar")
+            toolbar?.displayMode = .iconOnly
+            toolbar?.showsBaselineSeparator = false
+            toolbar?.allowsUserCustomization = false
+            toolbar?.autosavesConfiguration = false
             window.toolbar = toolbar
 
-            window.delegate = self
             window.titlebarAppearsTransparent = true
-            window.title = ""
+            window.title = ""  // Clear default title
             window.toolbarStyle = .unified
             window.contentView = NSHostingView(rootView: SettingsContainerView())
             window.isReleasedWhenClosed = false
-            window.center()
+            window.center()  // Center the window on the active screen
 
             windowController = NSWindowController(window: window)
         }
 
-        windowController?.window?.center()
+        windowController?.window?.center()  // Ensure window is centered even when reshown
         windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
+}
 
-    // MARK: - NSWindowDelegate
-
-    func windowDidBecomeKey(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
-
-        DispatchQueue.main.async {
-            if let contentView = window.contentView,
-                let splitView = self.findSplitView(in: contentView),
-                let splitViewController = splitView.delegate as? NSSplitViewController
-            {
-                splitViewController.splitViewItems.first?.isCollapsed = false
-                splitViewController.splitViewItems.first?.canCollapse = false
-                splitViewController.splitViewItems.first?.holdingPriority = .defaultHigh
-                splitViewController.splitViewItems.first?.minimumThickness = 200
-                splitViewController.splitViewItems.first?.maximumThickness = 200
-            }
+struct CustomSidebarLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            configuration.icon
+                .imageScale(.large)
+            configuration.title
+                .font(.system(size: 13))
         }
-    }
-
-    private func findSplitView(in view: NSView) -> NSSplitView? {
-        if let splitView = view as? NSSplitView {
-            return splitView
-        }
-        for subview in view.subviews {
-            if let found = findSplitView(in: subview) {
-                return found
-            }
-        }
-        return nil
     }
 }
 
@@ -75,10 +55,12 @@ struct SettingsContainerView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $selectedTab) {
-                Label("General", systemImage: "gear")
+                Label("General", systemImage: "square.text.square.fill")
                     .tag("General")
-                Label("Shortcuts", systemImage: "keyboard")
+                    .labelStyle(CustomSidebarLabelStyle())
+                Label("Shortcuts", systemImage: "command.square.fill")
                     .tag("Shortcuts")
+                    .labelStyle(CustomSidebarLabelStyle())
             }
             .toolbar(removing: .sidebarToggle)
             .listStyle(.sidebar)
@@ -108,17 +90,11 @@ struct SettingsContainerView: View {
 
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
-    @AppStorage("autoStartOnBoot") private var autoStartOnBoot = false
-    @AppStorage("showInMenuBar") private var showInMenuBar = true
-    @AppStorage("soundEffects") private var soundEffects = true
 
     var body: some View {
         Form {
             Section {
                 Toggle("Show status popup", isOn: $popupEnabled)
-                Toggle("Open at login", isOn: $autoStartOnBoot)
-                Toggle("Show in Menu Bar", isOn: $showInMenuBar)
-                Toggle("Sound effects", isOn: $soundEffects)
             }
         }
         .formStyle(.grouped)
