@@ -6,6 +6,35 @@ class KeyboardShortcutManager: ObservableObject {
     private var eventHandler: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
     private let screenshotManager: ScreenshotManager
+    
+    @AppStorage("customShortcut") private var customShortcut: Data?
+    @AppStorage("shortcutEnabled") private var shortcutEnabled = true {
+        didSet {
+            DispatchQueue.main.async {
+                self.updateShortcutState()
+            }
+        }
+    }
+    
+    var currentShortcut: KeyboardShortcut? {
+        get {
+            guard let data = customShortcut else { return defaultShortcut }
+            return try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
+        }
+        set {
+            if let newValue = newValue {
+                customShortcut = try? JSONEncoder().encode(newValue)
+                updateShortcutState()
+            } else {
+                customShortcut = nil
+                updateShortcutState()
+            }
+        }
+    }
+    
+    private var defaultShortcut: KeyboardShortcut {
+        KeyboardShortcut(keyCode: UInt16(kVK_ANSI_2), modifierFlags: UInt32(cmdKey | shiftKey))
+    }
 
     init(screenshotManager: ScreenshotManager) {
         self.screenshotManager = screenshotManager
@@ -13,16 +42,9 @@ class KeyboardShortcutManager: ObservableObject {
 
         // Force a clean registration on launch
         unregisterHotKey()
-        if UserDefaults.standard.bool(forKey: "shortcutEnabled") {
+        if shortcutEnabled {
             registerHotKey()
         }
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(shortcutSettingChanged),
-            name: UserDefaults.didChangeNotification,
-            object: nil
-        )
     }
 
     deinit {
@@ -54,13 +76,23 @@ class KeyboardShortcutManager: ObservableObject {
     }
 
     private func registerHotKey() {
+        // Don't register if shortcuts are disabled
+        guard shortcutEnabled else {
+            unregisterHotKey()
+            return
+        }
+        
         unregisterHotKey()
-
+        
+        let shortcut = currentShortcut ?? defaultShortcut
         var hotKeyID = EventHotKeyID(signature: OSType("vtsa".fourCharCodeValue), id: 1)
 
+        // Use proper Carbon modifier flags format
+        let modifiers = shortcut.modifierFlags
+
         let status = RegisterEventHotKey(
-            UInt32(kVK_ANSI_2),
-            UInt32(cmdKey | shiftKey),
+            UInt32(shortcut.keyCode),
+            modifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -68,7 +100,32 @@ class KeyboardShortcutManager: ObservableObject {
         )
 
         if status != noErr {
-            print("Failed to register hot key")
+            print("Failed to register hot key - Error: \(status)")
+            switch status {
+            case -9876:  // eventHotKeyExistsErr
+                print("Hot key already exists")
+                // Try to unregister and register again
+                unregisterHotKey()
+                let retryStatus = RegisterEventHotKey(
+                    UInt32(shortcut.keyCode),
+                    modifiers,
+                    hotKeyID,
+                    GetApplicationEventTarget(),
+                    0,
+                    &hotKeyRef
+                )
+                if retryStatus != noErr {
+                    print("Failed to register hot key after retry - Error: \(retryStatus)")
+                }
+            case -9878:  // errInvalidModifiers
+                print("Invalid modifier flags")
+            case -9868:  // eventInvalidEventParameterErr
+                print("Invalid event flags")
+            default:
+                print("Unknown error")
+            }
+        } else {
+            print("Successfully registered hot key")
         }
     }
 
@@ -79,12 +136,7 @@ class KeyboardShortcutManager: ObservableObject {
         }
     }
 
-    @objc private func shortcutSettingChanged() {
-        updateShortcutState()
-    }
-
     private func updateShortcutState() {
-        let shortcutEnabled = UserDefaults.standard.bool(forKey: "shortcutEnabled")
         if shortcutEnabled {
             registerHotKey()
         } else {
@@ -93,6 +145,11 @@ class KeyboardShortcutManager: ObservableObject {
     }
 
     private func handleKeyboardEvent(_ event: EventRef?) -> OSStatus {
+        // Don't handle events if shortcuts are disabled
+        guard shortcutEnabled else {
+            return OSStatus(eventNotHandledErr)
+        }
+        
         var hotKeyID = EventHotKeyID()
         let error = GetEventParameter(
             event,

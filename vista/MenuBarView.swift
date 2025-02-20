@@ -4,13 +4,7 @@ struct MenuBarView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
     @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
     @StateObject private var screenshotManager = ScreenshotManager()
-    @StateObject private var keyboardManager: KeyboardShortcutManager
-
-    init() {
-        let manager = ScreenshotManager()
-        _keyboardManager = StateObject(
-            wrappedValue: KeyboardShortcutManager(screenshotManager: manager))
-    }
+    @ObservedObject var keyboardManager: KeyboardShortcutManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -51,7 +45,7 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
 
             Button("Settings...") {
-                SettingsWindow.shared.show()
+                SettingsWindow.shared.show(keyboardManager: keyboardManager)
             }
             .keyboardShortcut(",", modifiers: .command)
 

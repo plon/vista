@@ -4,8 +4,11 @@ class SettingsWindow {
     static let shared = SettingsWindow()
     private var windowController: NSWindowController?
     private var toolbar: NSToolbar?
+    private var keyboardManager: KeyboardShortcutManager?
 
-    func show() {
+    func show(keyboardManager: KeyboardShortcutManager) {
+        self.keyboardManager = keyboardManager
+        
         if windowController == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 780, height: 460),
@@ -25,11 +28,13 @@ class SettingsWindow {
             window.titlebarAppearsTransparent = true
             window.title = ""  // Clear default title
             window.toolbarStyle = .unified
-            window.contentView = NSHostingView(rootView: SettingsContainerView())
+            window.contentView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager))
             window.isReleasedWhenClosed = false
             window.center()  // Center the window on the active screen
 
             windowController = NSWindowController(window: window)
+        } else if let window = windowController?.window {
+            window.contentView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager))
         }
 
         windowController?.window?.center()  // Ensure window is centered even when reshown
@@ -51,6 +56,7 @@ struct CustomSidebarLabelStyle: LabelStyle {
 
 struct SettingsContainerView: View {
     @State private var selectedTab = "General"
+    @ObservedObject var keyboardManager: KeyboardShortcutManager
 
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
@@ -71,7 +77,7 @@ struct SettingsContainerView: View {
                 case "General":
                     GeneralSettingsView()
                 case "Shortcuts":
-                    ShortcutSettingsView()
+                    ShortcutSettingsView(keyboardManager: keyboardManager)
                 default:
                     EmptyView()
                 }
@@ -105,10 +111,28 @@ struct GeneralSettingsView: View {
 
 struct ShortcutSettingsView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
+    @ObservedObject var keyboardManager: KeyboardShortcutManager
+    
+    init(keyboardManager: KeyboardShortcutManager) {
+        self.keyboardManager = keyboardManager
+    }
 
     var body: some View {
         Form {
-            Toggle("Enable keyboard shortcut (⌘⇧2)", isOn: $shortcutEnabled)
+            Section {
+                Toggle("Enable keyboard shortcut", isOn: $shortcutEnabled)
+                
+                if shortcutEnabled {
+                    ShortcutRecorder(shortcut: .init(
+                        get: { keyboardManager.currentShortcut },
+                        set: { keyboardManager.currentShortcut = $0 }
+                    ))
+                    .disabled(!shortcutEnabled)
+                }
+            } header: {
+                Text("Keyboard Shortcut")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.top, -20)
@@ -117,5 +141,5 @@ struct ShortcutSettingsView: View {
 }
 
 #Preview {
-    SettingsContainerView()
+    SettingsContainerView(keyboardManager: KeyboardShortcutManager(screenshotManager: ScreenshotManager()))
 }
