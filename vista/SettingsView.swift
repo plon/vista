@@ -6,6 +6,7 @@ class SettingsWindow {
     private var windowController: NSWindowController?
     private var toolbar: NSToolbar?
     private var keyboardManager: KeyboardShortcutManager?
+    private var selectedTab: String = "General"
 
     func show(keyboardManager: KeyboardShortcutManager) {
         self.keyboardManager = keyboardManager
@@ -20,25 +21,70 @@ class SettingsWindow {
 
             // Configure toolbar
             toolbar = NSToolbar(identifier: "SettingsToolbar")
-            toolbar?.displayMode = .iconOnly
-            toolbar?.showsBaselineSeparator = false
+            toolbar?.displayMode = .labelOnly
+            toolbar?.showsBaselineSeparator = true
             toolbar?.allowsUserCustomization = false
             toolbar?.autosavesConfiguration = false
             window.toolbar = toolbar
 
             window.titlebarAppearsTransparent = true
-            window.title = ""  // Clear default title
+            window.title = selectedTab
             window.toolbarStyle = .unified
-            window.contentView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager))
+            
+            // Configure window for vibrancy
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            
+            // Create visual effect view with automatic appearance
+            let visualEffectView = NSVisualEffectView()
+            visualEffectView.material = .sidebar
+            visualEffectView.state = .active
+            visualEffectView.blendingMode = .behindWindow
+            visualEffectView.appearance = nil  // follow system appearance
+            
+            // Create hosting view with title update callback
+            let hostingView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager) { [weak self] newTitle in
+                self?.selectedTab = newTitle
+                window.title = newTitle
+            })
+            
+            // Set up view hierarchy
+            visualEffectView.frame = window.contentView!.bounds
+            visualEffectView.autoresizingMask = [.width, .height]
+            window.contentView?.addSubview(visualEffectView)
+            
+            hostingView.frame = window.contentView!.bounds
+            hostingView.autoresizingMask = [.width, .height]
+            window.contentView?.addSubview(hostingView)
+            
             window.isReleasedWhenClosed = false
-            window.center()  // Center the window on the active screen
+            window.center()
 
             windowController = NSWindowController(window: window)
         } else if let window = windowController?.window {
-            window.contentView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager))
+            // Update content for existing window
+            let hostingView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager) { [weak self] newTitle in
+                self?.selectedTab = newTitle
+                window.title = newTitle
+            })
+            hostingView.frame = window.contentView!.bounds
+            hostingView.autoresizingMask = [.width, .height]
+            
+            // Remove old views and add new ones
+            window.contentView?.subviews.forEach { $0.removeFromSuperview() }
+            
+            let visualEffectView = NSVisualEffectView()
+            visualEffectView.material = .sidebar
+            visualEffectView.state = .active
+            visualEffectView.blendingMode = .behindWindow
+            visualEffectView.frame = window.contentView!.bounds
+            visualEffectView.autoresizingMask = [.width, .height]
+            
+            window.contentView?.addSubview(visualEffectView)
+            window.contentView?.addSubview(hostingView)
         }
 
-        windowController?.window?.center()  // Ensure window is centered even when reshown
+        windowController?.window?.center()
         windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -48,6 +94,7 @@ struct CustomSidebarLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
             configuration.icon
+                .font(.system(size: 18))
                 .imageScale(.large)
             configuration.title
                 .font(.system(size: 13))
@@ -58,20 +105,31 @@ struct CustomSidebarLabelStyle: LabelStyle {
 struct SettingsContainerView: View {
     @State private var selectedTab = "General"
     @ObservedObject var keyboardManager: KeyboardShortcutManager
+    var onTitleChange: (String) -> Void
+    
+    init(keyboardManager: KeyboardShortcutManager, onTitleChange: @escaping (String) -> Void) {
+        self.keyboardManager = keyboardManager
+        self.onTitleChange = onTitleChange
+    }
 
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $selectedTab) {
-                Label("General", systemImage: "square.text.square.fill")
+                Label("General", systemImage: "gearshape.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .tag("General")
                     .labelStyle(CustomSidebarLabelStyle())
-                Label("Shortcuts", systemImage: "command.square.fill")
+                Label("Shortcuts", systemImage: "command.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .tag("Shortcuts")
                     .labelStyle(CustomSidebarLabelStyle())
             }
             .toolbar(removing: .sidebarToggle)
             .listStyle(.sidebar)
             .frame(width: 200)
+            .onChange(of: selectedTab) { newValue in
+                onTitleChange(newValue)
+            }
         } detail: {
             Group {
                 switch selectedTab {
@@ -83,12 +141,6 @@ struct SettingsContainerView: View {
                     EmptyView()
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Text(selectedTab)
-                        .font(.system(size: 17, weight: .regular))
-                }
-            }
             .frame(maxHeight: .infinity, alignment: .top)
             .navigationSplitViewColumnWidth(min: 440, ideal: 440)
         }
@@ -97,7 +149,7 @@ struct SettingsContainerView: View {
 
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
-    @AppStorage("displayTarget") private var displayTarget = "builtin" // "builtin" or "main"
+    @AppStorage("displayTarget") private var displayTarget = "builtin"
 
     var body: some View {
         Form {
@@ -124,7 +176,7 @@ struct GeneralSettingsView: View {
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(displayTarget == "builtin" ? Color.accentColor : Color.clear, lineWidth: 2)
                     )
-                    .animation(.easeInOut(duration: 0.2), value: displayTarget)
+                    .animation(.easeInOut(duration: 0.15), value: displayTarget)
                     
                     Button {
                         displayTarget = "main"
@@ -138,7 +190,7 @@ struct GeneralSettingsView: View {
                                 .font(.system(size: 13, weight: displayTarget == "main" ? .semibold : .regular))
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)  // Reduced from 12 to 8
+                        .padding(.vertical, 8)
                     }
                     .buttonStyle(.bordered)
                     .overlay(
@@ -155,6 +207,7 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
+        .background(.clear)
     }
 }
 
@@ -183,9 +236,10 @@ struct ShortcutSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
+        .background(.clear)
     }
 }
 
 #Preview {
-    SettingsContainerView(keyboardManager: KeyboardShortcutManager(screenshotManager: ScreenshotManager()))
+    SettingsContainerView(keyboardManager: KeyboardShortcutManager(screenshotManager: ScreenshotManager())) { _ in }
 }
