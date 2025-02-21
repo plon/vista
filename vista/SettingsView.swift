@@ -12,7 +12,7 @@ class SettingsWindow {
         
         if windowController == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 780, height: 460),
+                contentRect: NSRect(x: 0, y: 0, width: 670, height: 580),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -97,11 +97,56 @@ struct SettingsContainerView: View {
 
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
+    @AppStorage("displayTarget") private var displayTarget = "builtin" // "builtin" or "main"
 
     var body: some View {
         Form {
             Section {
                 Toggle("Show status popup", isOn: $popupEnabled)
+                
+                HStack(spacing: 8) {
+                    Button {
+                        displayTarget = "builtin"
+                    } label: {
+                        VStack {
+                            Image(systemName: "laptopcomputer")
+                                .font(.system(size: 24))
+                                .frame(height: 24)
+                                .foregroundColor(displayTarget == "builtin" ? .accentColor : .primary)
+                            Text("Show on built-in display")
+                                .font(.system(size: 13, weight: displayTarget == "builtin" ? .semibold : .regular))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.bordered)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(displayTarget == "builtin" ? Color.accentColor : Color.clear, lineWidth: 2)
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: displayTarget)
+                    
+                    Button {
+                        displayTarget = "main"
+                    } label: {
+                        VStack {
+                            Image(systemName: "desktopcomputer.and.macbook")
+                                .font(.system(size: 24))
+                                .frame(height: 24)
+                                .foregroundColor(displayTarget == "main" ? .accentColor : .primary)
+                            Text("Show on main screen")
+                                .font(.system(size: 13, weight: displayTarget == "main" ? .semibold : .regular))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)  // Reduced from 12 to 8
+                    }
+                    .buttonStyle(.bordered)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(displayTarget == "main" ? Color.accentColor : Color.clear, lineWidth: 2)
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: displayTarget)
+                }
             } header: {
                 Text("System")
                     .foregroundStyle(.secondary)
@@ -110,7 +155,7 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
-    } 
+    }
 }
 
 struct ShortcutSettingsView: View {
