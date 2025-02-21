@@ -28,7 +28,7 @@ class KeyboardShortcutManager: ObservableObject {
     }
     
     @objc private func shortcutSettingChanged() {
-        setupShortcut()
+
     }
     
     deinit {
