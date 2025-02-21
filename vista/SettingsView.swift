@@ -102,12 +102,15 @@ struct GeneralSettingsView: View {
         Form {
             Section {
                 Toggle("Show status popup", isOn: $popupEnabled)
+            } header: {
+                Text("System")
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
-    }
+    } 
 }
 
 struct ShortcutSettingsView: View {
