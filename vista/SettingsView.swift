@@ -13,8 +13,8 @@ class SettingsWindow {
         
         if windowController == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 670, height: 580),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                contentRect: NSRect(x: 0, y: 0, width: 815, height: 615),
+                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
@@ -30,10 +30,6 @@ class SettingsWindow {
             window.titlebarAppearsTransparent = true
             window.title = selectedTab
             window.toolbarStyle = .unified
-            
-            // Configure window for vibrancy
-            window.backgroundColor = .clear
-            window.isOpaque = false
             
             // Create visual effect view with automatic appearance
             let visualEffectView = NSVisualEffectView()
