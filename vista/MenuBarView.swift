@@ -3,7 +3,7 @@ import SwiftUI
 struct MenuBarView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
     @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
-    @StateObject private var screenshotManager = ScreenshotManager()
+    @ObservedObject var screenshotManager: ScreenshotManager
     @ObservedObject var keyboardManager: KeyboardShortcutManager
 
     var body: some View {
