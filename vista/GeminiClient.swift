@@ -12,13 +12,13 @@ enum GeminiError: Error {
 // MARK: - Models
 enum GeminiModel: String, CaseIterable {
     case pro = "gemini-2.0-pro-exp-02-05"
-    case flashLite = "gemini-2.0-flash-lite-preview-02-05"
+    case flashLite = "gemini-2.0-flash-lite"
     case flash = "gemini-2.0-flash"
 
     var displayName: String {
         switch self {
         case .pro: return "Gemini 2.0 Pro Experimental 02-05"
-        case .flashLite: return "Gemini 2.0 Flash-Lite Preview 02-05"
+        case .flashLite: return "Gemini 2.0 Flash-Lite"
         case .flash: return "Gemini 2.0 Flash"
         }
     }
@@ -95,6 +95,9 @@ final class GeminiClient {
         // Convert image data to base64
         let base64Image = imageData.base64EncodedString()
 
+        // Print the model being used for this API call
+        print("Making Gemini API request using model: \(model)")
+
         let requestBody: [String: Any] = [
             "contents": [
                 [
@@ -137,10 +140,15 @@ final class GeminiClient {
 
         let (data, response) = try await session.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-            (200...299).contains(httpResponse.statusCode)
-        else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GeminiError.generateContentFailed("Invalid response type")
+        }
+
+        print("Gemini API response received with status code: \(httpResponse.statusCode)")
+
+        guard (200...299).contains(httpResponse.statusCode) else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("Gemini API error: \(errorMessage)")
             throw GeminiError.generateContentFailed("Generation failed: \(errorMessage)")
         }
 
@@ -149,8 +157,10 @@ final class GeminiClient {
 
     // MARK: - Private Methods
     private func parseGenerationResponse(from data: Data) throws -> String {
+        print("Parsing Gemini API response")
         let response = try JSONDecoder().decode(GenerationResponse.self, from: data)
         guard let jsonString = response.candidates.first?.content.parts.first?.text else {
+            print("Failed to extract JSON from Gemini response")
             throw GeminiError.invalidJSON
         }
 
@@ -160,9 +170,11 @@ final class GeminiClient {
 
         // Check if text was detected
         guard extractedContent.hasText else {
+            print("No text detected in the image")
             throw GeminiError.noTextDetected
         }
 
+        print("Successfully extracted \(extractedContent.extractedText.count) characters of text")
         return extractedContent.extractedText
     }
 }

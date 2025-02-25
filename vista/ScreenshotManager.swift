@@ -13,6 +13,7 @@ class ScreenshotManager: ObservableObject {
 
     func updateModel(_ model: GeminiModel) {
         selectedModel = model
+        print("Updating Gemini model to: \(model.displayName)")
         geminiClient.setModel(model)
     }
 

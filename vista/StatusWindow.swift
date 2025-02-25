@@ -41,6 +41,7 @@ class StatusWindowController {
         case .cancelled:
             autoHide(after: 1.0)
         case .error(let message):
+            print("Error occurred: \(message)")
             let duration = message.contains("No text detected") ? 2.0 : 2.0
             autoHide(after: duration)
         default:
@@ -121,11 +122,7 @@ private struct StatusOverlay: View {
     private var statusMessage: String? {
         switch status {
         case .error(let message):
-            if message.contains("No text detected") {
-                return "No text found"
-            } else {
-                return "Error"
-            }
+            return message
         case .processing:
             return "Processing"
         case .success:
