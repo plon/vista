@@ -7,7 +7,7 @@ struct InputWithHelp<Content: View>: View {
     @State private var showingPopover = false
 
     var body: some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             Text(label)
 
             Image(systemName: "info.circle")
@@ -50,6 +50,9 @@ struct OutputSettingsView: View {
     @AppStorage("isCustomMode") private var isCustomMode = false
     @AppStorage("systemPrompt") private var systemPrompt = ""
     @State private var generatedPrompt: String = ""
+
+    // Add this property to track if we're showing the reset confirmation alert
+    @State private var showingResetConfirmation = false
 
     var body: some View {
         VSplitView {
@@ -132,7 +135,7 @@ struct OutputSettingsView: View {
                                 helpText:
                                     "Leave blank to keep original language, or enter a language code (e.g., 'en', 'es', 'fr') to translate"
                             ) {
-                                TextField("Keep original language", text: $outputLanguage)
+                                TextField("", text: $outputLanguage)
                                     .textFieldStyle(.roundedBorder)
                                     .disabled(isCustomMode)
                                     .onChange(of: outputLanguage) { _ in updateSystemPrompt() }
@@ -208,6 +211,36 @@ struct OutputSettingsView: View {
                     } header: {
                         Text("Intelligence")
                             .foregroundStyle(.secondary)
+                    }
+
+                    Section {
+                        EmptyView()
+                    }
+                    Section {
+                        EmptyView()
+                    }
+
+                    // 4. Reset to Defaults section
+                    Section {
+                        Button(action: { showingResetConfirmation = true }) {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(Color.blue)
+                                Text("Reset to Defaults")
+                                    .foregroundStyle(Color.blue)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .alert("Reset Settings", isPresented: $showingResetConfirmation) {
+                            Button("Cancel", role: .cancel) {}
+                            Button("Reset", role: .destructive) { resetToDefaults() }
+                        } message: {
+                            Text("Are you sure you want to reset all output settings to defaults?")
+                        }
                     }
                 }
                 .formStyle(.grouped)
@@ -297,6 +330,30 @@ struct OutputSettingsView: View {
 
     private func resetToGenerated() {
         isCustomMode = false
+        updateSystemPrompt()
+    }
+
+    private func resetToDefaults() {
+        // Reset format
+        formatType = "plain_text"
+
+        // Reset text formatting
+        prettyFormatting = false
+        originalFormatting = true
+        outputLanguage = ""
+        latexMath = true
+
+        // Reset intelligence options
+        errorCorrection = false
+        lowConfidenceHighlighting = false
+        contextualGrouping = false
+        accessibilityAltText = false
+        smartContext = false
+
+        // Reset custom mode
+        isCustomMode = false
+
+        // Regenerate the system prompt based on default settings
         updateSystemPrompt()
     }
 }
