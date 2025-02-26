@@ -1,6 +1,5 @@
 import SwiftUI
 
-// Unified reusable component that works with any input control
 struct InputWithHelp<Content: View>: View {
     var label: String
     var helpText: String
@@ -11,7 +10,6 @@ struct InputWithHelp<Content: View>: View {
         HStack {
             Text(label)
 
-            // Info button with hover popover
             Image(systemName: "info.circle")
                 .foregroundColor(.secondary)
                 .padding(.trailing, 2)
@@ -38,9 +36,8 @@ struct OutputSettingsView: View {
     // Text Formatting
     @AppStorage("prettyFormatting") private var prettyFormatting = false
     @AppStorage("originalFormatting") private var originalFormatting = true
-    @AppStorage("languageDetection") private var languageDetection = false
+    @AppStorage("outputLanguage") private var outputLanguage = ""
     @AppStorage("latexMath") private var latexMath = true
-    @AppStorage("targetLanguage") private var targetLanguage = ""
 
     // Intelligence options
     @AppStorage("errorCorrection") private var errorCorrection = false
@@ -92,9 +89,9 @@ struct OutputSettingsView: View {
                                 helpText: "Improves readability by adjusting paragraphs and layout"
                             ) {
                                 Toggle("", isOn: $prettyFormatting)
-                                    .disabled(isCustomMode || originalFormatting)
+                                    .disabled(isCustomMode)
                                     .onChange(of: prettyFormatting) { newValue in
-                                        if newValue && originalFormatting {
+                                        if newValue {
                                             originalFormatting = false
                                         }
                                         updateSystemPrompt()
@@ -108,9 +105,9 @@ struct OutputSettingsView: View {
                                 helpText: "Maintains exact layout, indentation, and line breaks"
                             ) {
                                 Toggle("", isOn: $originalFormatting)
-                                    .disabled(isCustomMode || prettyFormatting)
+                                    .disabled(isCustomMode)
                                     .onChange(of: originalFormatting) { newValue in
-                                        if newValue && prettyFormatting {
+                                        if newValue {
                                             prettyFormatting = false
                                         }
                                         updateSystemPrompt()
@@ -131,27 +128,14 @@ struct OutputSettingsView: View {
                             Divider()
 
                             InputWithHelp(
-                                label: "Detect language",
-                                helpText: "Identifies the language of the text"
+                                label: "Output language:",
+                                helpText:
+                                    "Leave blank to keep original language, or enter a language code (e.g., 'en', 'es', 'fr') to translate"
                             ) {
-                                Toggle("", isOn: $languageDetection)
+                                TextField("Keep original language", text: $outputLanguage)
+                                    .textFieldStyle(.roundedBorder)
                                     .disabled(isCustomMode)
-                                    .onChange(of: languageDetection) { _ in updateSystemPrompt() }
-                            }
-
-                            if languageDetection {
-                                Divider()
-
-                                InputWithHelp(
-                                    label: "Target language:",
-                                    helpText:
-                                        "Specify a language code (e.g., 'en', 'es', 'fr') for translation"
-                                ) {
-                                    TextField("Leave blank to keep original", text: $targetLanguage)
-                                        .textFieldStyle(.roundedBorder)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: targetLanguage) { _ in updateSystemPrompt() }
-                                }
+                                    .onChange(of: outputLanguage) { _ in updateSystemPrompt() }
                             }
                         }
                     } header: {
@@ -299,9 +283,8 @@ struct OutputSettingsView: View {
                 formatType: formatType,
                 prettyFormatting: prettyFormatting,
                 originalFormatting: originalFormatting,
-                languageDetection: languageDetection,
+                outputLanguage: outputLanguage,
                 latexMath: latexMath,
-                targetLanguage: targetLanguage.isEmpty ? nil : targetLanguage,
                 errorCorrection: errorCorrection,
                 lowConfidenceHighlighting: lowConfidenceHighlighting,
                 contextualGrouping: contextualGrouping,

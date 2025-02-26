@@ -72,19 +72,7 @@ class ScreenshotManager: ObservableObject {
 
                 // If the system prompt is empty, generate a default one
                 if systemPrompt.isEmpty {
-                    systemPrompt = generateOCRSystemPrompt(
-                        formatType: "plain_text",
-                        prettyFormatting: false,
-                        originalFormatting: true,
-                        languageDetection: false,
-                        latexMath: true,
-                        targetLanguage: nil,
-                        errorCorrection: false,
-                        lowConfidenceHighlighting: false,
-                        contextualGrouping: false,
-                        accessibilityAltText: false,
-                        smartContext: false
-                    )
+                    systemPrompt = generateOCRSystemPrompt()
                 }
 
                 // Process the image with the system prompt

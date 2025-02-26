@@ -2,9 +2,8 @@ func generateOCRSystemPrompt(
     formatType: String = "plain_text",
     prettyFormatting: Bool = false,
     originalFormatting: Bool = true,
-    languageDetection: Bool = false,
+    outputLanguage: String = "",
     latexMath: Bool = true,
-    targetLanguage: String? = nil,
     errorCorrection: Bool = false,
     lowConfidenceHighlighting: Bool = false,
     contextualGrouping: Bool = false,
@@ -18,9 +17,8 @@ func generateOCRSystemPrompt(
         - formatType: The output format type. Options: "plain_text", "json", "html", "xml", "rtf", "latex", "markdown"
         - prettyFormatting: Enable pretty formatting for improved readability
         - originalFormatting: Preserve the original formatting of the source
-        - languageDetection: Enable language detection and optional translation
+        - outputLanguage: Language to translate the content to (blank preserves original language)
         - latexMath: Enable conversion of math equations to LaTeX
-        - targetLanguage: The target language for translation (if applicable)
         - errorCorrection: Enable error correction for OCR output
         - lowConfidenceHighlighting: Highlight low-confidence OCR sections
         - contextualGrouping: Enable intelligent grouping of related content
@@ -80,16 +78,11 @@ func generateOCRSystemPrompt(
             "Preserve the source document's layout exactly as it appears. Retain all original line breaks, indentation, spacing, and alignment.\n\n"
     }
 
-    if languageDetection {
-        if let targetLanguage = targetLanguage {
-            prompt += "Detect the text's language and translate it into \(targetLanguage).\n\n"
-        } else {
-            prompt +=
-                "Detect the text's language and retain it unless a target language is specified.\n\n"
-        }
+    if !outputLanguage.isEmpty {
+        prompt += "Detect the text's language and translate it into \(outputLanguage).\n\n"
     }
 
-    if latexMath {
+    if latexMath && formatType != "latex" {
         prompt +=
             "Convert math equations into LaTeX; For inline formulas, enclose the formula in $…$. For displayed formulas, use $$…$$.\n\n"
     }
@@ -101,7 +94,7 @@ func generateOCRSystemPrompt(
 
     if lowConfidenceHighlighting {
         prompt +=
-            "Highlight eleements with low OCR confidence using the marker '[?]' to flag them for review.\n\n"
+            "Highlight elements with low OCR confidence using the marker '[?]' to flag them for review.\n\n"
     }
 
     if contextualGrouping {
@@ -131,8 +124,7 @@ func generateOCRSystemPrompt(
 //     formatType: "json",
 //     prettyFormatting: true,
 //     originalFormatting: false,
-//     languageDetection: true,
-//     targetLanguage: "English",
+//     outputLanguage: "English",
 //     errorCorrection: true,
 //     lowConfidenceHighlighting: true,
 //     contextualGrouping: true,
