@@ -1,108 +1,104 @@
-import SwiftUI
 import KeyboardShortcuts
+import SwiftUI
 
+// MARK: - SettingsWindow (Window Management)
 class SettingsWindow {
     static let shared = SettingsWindow()
     private var windowController: NSWindowController?
-    private var toolbar: NSToolbar?
-    private var keyboardManager: KeyboardShortcutManager?
-    private var selectedTab: String = "General"
+    private var initialTab: String = "General"
 
     func show(keyboardManager: KeyboardShortcutManager) {
-        self.keyboardManager = keyboardManager
-        
         if windowController == nil {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 815, height: 615),
-                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-
-            // Configure toolbar
-            toolbar = NSToolbar(identifier: "SettingsToolbar")
-            toolbar?.displayMode = .labelOnly
-            toolbar?.showsBaselineSeparator = true
-            toolbar?.allowsUserCustomization = false
-            toolbar?.autosavesConfiguration = false
-            window.toolbar = toolbar
-
-            window.titlebarAppearsTransparent = true
-            window.title = selectedTab
-            window.toolbarStyle = .unified
-            
-            // Create visual effect view with automatic appearance
-            let visualEffectView = NSVisualEffectView()
-            visualEffectView.material = .sidebar
-            visualEffectView.state = .active
-            visualEffectView.blendingMode = .behindWindow
-            visualEffectView.appearance = nil  // follow system appearance
-            
-            // Create hosting view with title update callback
-            let hostingView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager) { [weak self] newTitle in
-                self?.selectedTab = newTitle
-                window.title = newTitle
-            })
-            
-            // Set up view hierarchy
-            visualEffectView.frame = window.contentView!.bounds
-            visualEffectView.autoresizingMask = [.width, .height]
-            window.contentView?.addSubview(visualEffectView)
-            
-            hostingView.frame = window.contentView!.bounds
-            hostingView.autoresizingMask = [.width, .height]
-            window.contentView?.addSubview(hostingView)
-            
-            window.isReleasedWhenClosed = false
-            window.center()
+            let window = createWindow()
+            setupWindowContent(window: window, keyboardManager: keyboardManager)
 
             windowController = NSWindowController(window: window)
         } else if let window = windowController?.window {
-            // Update content for existing window
-            let hostingView = NSHostingView(rootView: SettingsContainerView(keyboardManager: keyboardManager) { [weak self] newTitle in
-                self?.selectedTab = newTitle
-                window.title = newTitle
-            })
-            hostingView.frame = window.contentView!.bounds
-            hostingView.autoresizingMask = [.width, .height]
-            
-            // Remove old views and add new ones
-            window.contentView?.subviews.forEach { $0.removeFromSuperview() }
-            
-            let visualEffectView = NSVisualEffectView()
-            visualEffectView.material = .sidebar
-            visualEffectView.state = .active
-            visualEffectView.blendingMode = .behindWindow
-            visualEffectView.frame = window.contentView!.bounds
-            visualEffectView.autoresizingMask = [.width, .height]
-            
-            window.contentView?.addSubview(visualEffectView)
-            window.contentView?.addSubview(hostingView)
+            setupWindowContent(window: window, keyboardManager: keyboardManager)
         }
 
         windowController?.window?.center()
         windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
+
+    private func createWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 815, height: 615),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        window.titlebarAppearsTransparent = true
+        window.title = initialTab
+        window.toolbarStyle = .unified
+        window.isReleasedWhenClosed = true
+
+        return window
+    }
+
+    private func setupWindowContent(window: NSWindow, keyboardManager: KeyboardShortcutManager) {
+        // Create visual effect view with automatic appearance
+        let visualEffectView = NSVisualEffectView()
+        visualEffectView.material = .sidebar
+        visualEffectView.state = .active
+        visualEffectView.blendingMode = .behindWindow
+        visualEffectView.appearance = nil  // follow system appearance
+
+        // Create hosting view for the settings container
+        let hostingView = NSHostingView(
+            rootView:
+                SettingsContainerView(keyboardManager: keyboardManager) { newTitle in
+                    window.title = newTitle
+                }
+        )
+
+        // Set up view hierarchy
+        visualEffectView.frame = window.contentView!.bounds
+        visualEffectView.autoresizingMask = [.width, .height]
+
+        // Remove old views if they exist
+        window.contentView?.subviews.forEach { $0.removeFromSuperview() }
+
+        window.contentView?.addSubview(visualEffectView)
+
+        hostingView.frame = window.contentView!.bounds
+        hostingView.autoresizingMask = [.width, .height]
+        window.contentView?.addSubview(hostingView)
+    }
+
+    func cleanup() {
+        windowController?.close()
+        windowController = nil
+    }
+
+    deinit {
+        cleanup()
+    }
 }
 
+// MARK: - Custom Sidebar Label Style
 struct CustomSidebarLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
             configuration.icon
                 .font(.system(size: 18))
                 .imageScale(.large)
+                .accessibility(hidden: true)
             configuration.title
                 .font(.system(size: 13))
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
+// MARK: - Settings Container View
 struct SettingsContainerView: View {
-    @State private var selectedTab = "General"
     @ObservedObject var keyboardManager: KeyboardShortcutManager
+    @State private var selectedTab: String = "General"
     var onTitleChange: (String) -> Void
-    
+
     init(keyboardManager: KeyboardShortcutManager, onTitleChange: @escaping (String) -> Void) {
         self.keyboardManager = keyboardManager
         self.onTitleChange = onTitleChange
@@ -115,16 +111,19 @@ struct SettingsContainerView: View {
                     .symbolRenderingMode(.hierarchical)
                     .tag("General")
                     .labelStyle(CustomSidebarLabelStyle())
+                    .accessibilityLabel("General settings")
+
                 Label("Shortcuts", systemImage: "command.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .tag("Shortcuts")
                     .labelStyle(CustomSidebarLabelStyle())
+                    .accessibilityLabel("Keyboard shortcuts settings")
             }
             .toolbar(removing: .sidebarToggle)
             .listStyle(.sidebar)
             .frame(width: 200)
-            .onChange(of: selectedTab) { newValue in
-                onTitleChange(newValue)
+            .onChange(of: selectedTab) { newTab in
+                onTitleChange(newTab)
             }
         } detail: {
             Group {
@@ -143,6 +142,7 @@ struct SettingsContainerView: View {
     }
 }
 
+// MARK: - General Settings View
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "builtin"
@@ -151,53 +151,43 @@ struct GeneralSettingsView: View {
         Form {
             Section {
                 Toggle("Show status popup", isOn: $popupEnabled)
-                
+                    .accessibilityLabel("Toggle status popup visibility")
+                    .accessibilityHint(
+                        "When enabled, a status popup will be shown during screenshot processing")
+
                 HStack(spacing: 8) {
                     Button {
                         displayTarget = "builtin"
                     } label: {
-                        VStack {
-                            Image(systemName: "laptopcomputer")
-                                .font(.system(size: 24))
-                                .frame(height: 24)
-                                .foregroundColor(displayTarget == "builtin" ? .accentColor : .primary)
-                            Text("Show on built-in display")
-                                .font(.system(size: 13, weight: displayTarget == "builtin" ? .semibold : .regular))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        DisplayTargetOptionView(
+                            title: "Show on built-in display",
+                            iconName: "laptopcomputer",
+                            isSelected: displayTarget == "builtin"
+                        )
                     }
-                    .buttonStyle(.bordered)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(displayTarget == "builtin" ? Color.accentColor : Color.clear, lineWidth: 2)
-                    )
-                    .animation(.easeInOut(duration: 0.15), value: displayTarget)
-                    
+                    .accessibilityLabel("Show on built-in display")
+                    .accessibilityHint("Display status on the built-in screen")
+                    .accessibilityAddTraits(displayTarget == "builtin" ? .isSelected : [])
+                    .buttonStyle(.plain)
+
                     Button {
                         displayTarget = "main"
                     } label: {
-                        VStack {
-                            Image(systemName: "desktopcomputer.and.macbook")
-                                .font(.system(size: 24))
-                                .frame(height: 24)
-                                .foregroundColor(displayTarget == "main" ? .accentColor : .primary)
-                            Text("Show on main screen")
-                                .font(.system(size: 13, weight: displayTarget == "main" ? .semibold : .regular))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        DisplayTargetOptionView(
+                            title: "Show on main screen",
+                            iconName: "desktopcomputer.and.macbook",
+                            isSelected: displayTarget == "main"
+                        )
                     }
-                    .buttonStyle(.bordered)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(displayTarget == "main" ? Color.accentColor : Color.clear, lineWidth: 2)
-                    )
-                    .animation(.easeInOut(duration: 0.2), value: displayTarget)
+                    .accessibilityLabel("Show on main screen")
+                    .accessibilityHint("Display status on the main screen, which may be external")
+                    .accessibilityAddTraits(displayTarget == "main" ? .isSelected : [])
+                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("System")
                     .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
             }
         }
         .formStyle(.grouped)
@@ -207,10 +197,41 @@ struct GeneralSettingsView: View {
     }
 }
 
+// MARK: - Display Target Option View
+struct DisplayTargetOptionView: View {
+    let title: String
+    let iconName: String
+    let isSelected: Bool
+
+    var body: some View {
+        VStack {
+            Image(systemName: iconName)
+                .font(.system(size: 24))
+                .frame(height: 24)
+                .foregroundColor(isSelected ? .accentColor : .primary)
+
+            Text(title)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(
+                    isSelected ? Color.accentColor : Color.gray.opacity(0.3),
+                    lineWidth: isSelected ? 2 : 1)
+        )
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}
+
+// MARK: - Shortcut Settings View
 struct ShortcutSettingsView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
     @ObservedObject var keyboardManager: KeyboardShortcutManager
-    
+
     init(keyboardManager: KeyboardShortcutManager) {
         self.keyboardManager = keyboardManager
     }
@@ -219,14 +240,21 @@ struct ShortcutSettingsView: View {
         Form {
             Section {
                 Toggle("Enable keyboard shortcut", isOn: $shortcutEnabled)
-                
+                    .accessibilityLabel("Toggle keyboard shortcut")
+                    .accessibilityHint(
+                        "When enabled, you can use keyboard shortcuts to take screenshots")
+
                 if shortcutEnabled {
                     KeyboardShortcuts.Recorder("Screenshot shortcut:", name: .takeScreenshot)
                         .disabled(!shortcutEnabled)
+                        .accessibilityLabel("Screenshot keyboard shortcut recorder")
+                        .accessibilityHint(
+                            "Press keys to set the keyboard shortcut for taking screenshots")
                 }
             } header: {
                 Text("Keyboard Shortcut")
                     .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
             }
         }
         .formStyle(.grouped)
@@ -234,8 +262,4 @@ struct ShortcutSettingsView: View {
         .padding(.horizontal, -10)
         .background(.clear)
     }
-}
-
-#Preview {
-    SettingsContainerView(keyboardManager: KeyboardShortcutManager(screenshotManager: ScreenshotManager())) { _ in }
 }
