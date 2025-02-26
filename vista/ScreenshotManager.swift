@@ -82,8 +82,8 @@ class ScreenshotManager: ObservableObject {
                 )
 
                 await MainActor.run {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(extractedText, forType: .string)
+                    // Use the new copyToClipboard method instead of directly setting the clipboard
+                    self.copyToClipboard(extractedText)
                     self.status = .success
                     self.statusWindow.show(withStatus: .success)
                 }
@@ -111,6 +111,37 @@ class ScreenshotManager: ObservableObject {
                         withStatus: .error("Processing failed: \(error.localizedDescription)"))
                 }
             }
+        }
+    }
+
+    func copyToClipboard(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        // Get the user's preferred format
+        let formatType = UserDefaults.standard.string(forKey: "formatType") ?? "plain_text"
+
+        // Always set plain text as a fallback
+        pasteboard.setString(text, forType: .string)
+
+        // Handle rich text formats
+        switch formatType {
+        case "html":
+            if let data = text.data(using: .utf8) {
+                pasteboard.setData(data, forType: .html)
+                print("Copied HTML to clipboard as rich text")
+            }
+
+        case "rtf":
+            if let data = text.data(using: .utf8) {
+                pasteboard.setData(data, forType: .rtf)
+                print("Copied RTF to clipboard as rich text")
+            }
+
+        default:
+            // For all other formats (markdown, json, latex, xml, plain_text),
+            // we just use the plain text representation we already set
+            print("Copied \(formatType) to clipboard as plain text")
         }
     }
 }
