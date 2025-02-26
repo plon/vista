@@ -113,7 +113,7 @@ struct SettingsContainerView: View {
                     .labelStyle(CustomSidebarLabelStyle())
                     .accessibilityLabel("General settings")
 
-                Label("Output", systemImage: "pencil.circle.fill")
+                Label("Output", systemImage: "square.and.pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .tag("Output")
                     .labelStyle(CustomSidebarLabelStyle())

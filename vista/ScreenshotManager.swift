@@ -67,13 +67,30 @@ class ScreenshotManager: ObservableObject {
 
         Task {
             do {
-                // Get the custom prompt if available
-                let customPrompt = UserDefaults.standard.string(forKey: "systemPrompt") ?? ""
+                // Get the system prompt from user defaults
+                var systemPrompt = UserDefaults.standard.string(forKey: "systemPrompt") ?? ""
 
-                // Process the image with custom prompt if it exists
+                // If the system prompt is empty, generate a default one
+                if systemPrompt.isEmpty {
+                    systemPrompt = generateOCRSystemPrompt(
+                        formatType: "plain_text",
+                        prettyFormatting: false,
+                        originalFormatting: true,
+                        languageDetection: false,
+                        latexMath: true,
+                        targetLanguage: nil,
+                        errorCorrection: false,
+                        lowConfidenceHighlighting: false,
+                        contextualGrouping: false,
+                        accessibilityAltText: false,
+                        smartContext: false
+                    )
+                }
+
+                // Process the image with the system prompt
                 let extractedText = try await geminiClient.processImage(
                     imageData,
-                    withCustomPrompt: customPrompt.isEmpty ? nil : customPrompt
+                    withCustomPrompt: systemPrompt
                 )
 
                 await MainActor.run {
