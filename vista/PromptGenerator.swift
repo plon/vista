@@ -13,32 +13,43 @@ func generateOCRSystemPrompt(
     // Define output expectations for each format
     let formatExpectations: [String: String] = [
         "plain_text":
-            "Output the extracted content as plain text. Use line breaks to separate paragraphs.",
-        "html": "Output the content as valid, well-structured HTML. Use semantic tags "
-            + "to represent elements: <h1>, <h2>, etc., for headings; <p> for paragraphs; "
-            + "<ul> and <li> for bullet points; <table>, <tr>, and <td> for tables. "
-            + "Ensure proper nesting and closing of tags.",
-        "json": "Output the content as a structured JSON object. Use keys to represent "
-            + "content types (e.g., 'title', 'paragraph', 'list', 'table'). For lists, "
-            + "use arrays to group items. For tables, use an array of objects, where "
-            + "each object represents a row.",
-        "rtf": "Output the content as an RTF document. Use RTF tags to represent formatting: "
-            + "\\b for bold (e.g., headings), \\i for italics, \\par for paragraphs, "
-            + "\\listtext for bullet points, and \\trowd and \\cell for tables. Ensure "
-            + "compatibility with standard RTF readers.",
-        "xml": "Output the content as a well-formed XML document. Use custom tags to "
-            + "represent content types (e.g., <title>, <paragraph>, <list>, <table>). "
-            + "For lists, use nested <item> tags. For tables, use <row> and <cell> tags.",
-        "latex": "Output the content as a LaTeX document. Use LaTeX commands to represent "
-            + "content elements: \\section{} and \\subsection{} for headings, \\textbf{} "
-            + "for bold text, \\begin{itemize} and \\item for bullet points, and "
-            + "\\begin{table} with \\hline for tables. Ensure mathematical expressions "
-            + "are properly formatted using math mode (e.g., $...$ for inline math and "
-            + "\\[ ... \\] for display math).",
-        "markdown": "Output the content as a Markdown document. Use Markdown syntax to represent "
-            + "content elements: '#' for headings, '**' for bold text, '*' or '-' for bullet points, "
-            + "and '|' for tables. Ensure proper indentation for nested lists and use backticks "
-            + "(```) for code blocks.",
+            "Output as plain text while preserving readability and structure. Use line breaks to separate paragraphs.",
+
+        "html":
+            "Convert to semantic HTML5 that preserves both structure and presentation. Use appropriate "
+            + "tags (<header>, <article>, <section>, <p>, <strong>, <em>, etc.) and attributes "
+            + "(class, style) to maintain visual hierarchy and formatting. Ensure valid DOM structure "
+            + "and accessibility.",
+
+        "json":
+            "Structure as a semantic JSON document with clear hierarchy. Include 'type', 'content', "
+            + "and 'style' properties to capture structure and formatting. Example: "
+            + "{'type': 'paragraph', 'content': 'text', 'style': {'bold': true}}. Maintain "
+            + "relationships between elements.",
+
+        "rtf":
+            "Generate a complete RTF document using standard control codes (\\b, \\i, \\par, etc.) "
+            + "to preserve formatting. Include document-level properties and styling. Handle "
+            + "complex elements like tables (\\trowd, \\cell) and lists while maintaining "
+            + "compatibility.",
+
+        "xml":
+            "Create a semantic XML structure with clear hierarchy. Use elements for content "
+            + "(<paragraph>, <list>, <table>) and attributes for styling (font-weight, "
+            + "font-style). Include metadata and maintain valid XML syntax. Example: "
+            + "<text style='bold'>content</text>.",
+
+        "latex":
+            "Generate a complete LaTeX document with appropriate structure and formatting. "
+            + "Use semantic commands (\\section{}, \\textbf{}, \\begin{itemize}, etc.) and "
+            + "proper environments. Handle math mode appropriately ($...$ for inline, "
+            + "\\[ ... \\] for display). Include necessary packages.",
+
+        "markdown":
+            "Convert to idiomatic Markdown that balances readability with formatting fidelity. "
+            + "Use native syntax (# for headings, ** for bold, * for italic, - for lists, "
+            + "| for tables) where possible. Fall back to HTML spans for complex formatting. "
+            + "Maintain clear document structure.",
     ]
 
     // Start building the prompt
@@ -49,6 +60,9 @@ func generateOCRSystemPrompt(
 
     // Add format-specific expectations
     prompt += "\(formatExpectations[formatType, default: "Invalid format type specified."])\n\n"
+
+    prompt +=
+        "Preserve all visual formatting and styling from the source document using the appropriate syntax and capabilities of the target format.\n\n"
 
     // Add optional features based on toggles
     if prettyFormatting {
@@ -72,7 +86,7 @@ func generateOCRSystemPrompt(
 
     if spellCheck {
         prompt +=
-            "Fix OCR and spelling errors, using context of surrounding text when helpful.\n\n"
+            "Fix all OCR and spelling errors, using context of surrounding text when helpful.\n\n"
     }
 
     if lowConfidenceHighlighting {
