@@ -87,7 +87,7 @@ func generateOCRSystemPrompt(
 
     if accessibilityAltText {
         prompt +=
-            "Generate descriptive alternative text (alt text) for images or graphical elements.\n\n"
+            "Generate descriptive alternative text (alt text) for images or graphical elements using the format [alt text: description].\n\n"
     }
 
     if smartContext {

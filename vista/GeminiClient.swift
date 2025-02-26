@@ -123,8 +123,8 @@ final class GeminiClient {
             ],
             "generationConfig": [
                 "temperature": 0,
-                "topK": 40,
-                "topP": 0.95,
+                "topK": 1,
+                "topP": 0.3,
                 "maxOutputTokens": 8192,
                 "responseMimeType": "application/json",
                 "responseSchema": [
