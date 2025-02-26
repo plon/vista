@@ -12,16 +12,6 @@ struct OutputSettingsView: View {
 
     @State private var generatedPrompt: String = ""
 
-    // Language options
-    private let languages = [
-        ("en", "English"),
-        ("es", "Spanish"),
-        ("fr", "French"),
-        ("de", "German"),
-        ("zh", "Chinese"),
-        ("ja", "Japanese"),
-    ]
-
     var body: some View {
         VSplitView {
             // Top section - An actual Form
@@ -63,14 +53,10 @@ struct OutputSettingsView: View {
                             Text("Language")
                                 .font(.headline)
 
-                            Picker("", selection: $language) {
-                                ForEach(languages, id: \.0) { code, name in
-                                    Text(name).tag(code)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .disabled(isCustomMode)
-                            .onChange(of: language) { _ in updateSystemPrompt() }
+                            TextField("Enter language code (e.g. en, es, fr)", text: $language)
+                                .textFieldStyle(.roundedBorder)
+                                .disabled(isCustomMode)
+                                .onChange(of: language) { _ in updateSystemPrompt() }
                         }
 
                         // Custom Instructions
@@ -106,7 +92,9 @@ struct OutputSettingsView: View {
                             Label("Reset to Generated", systemImage: "arrow.counterclockwise")
                                 .font(.subheadline)
                         }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .tint(.orange)
                     }
                 }
 
@@ -128,9 +116,11 @@ struct OutputSettingsView: View {
                     }
 
                 if isCustomMode {
-                    Text("Custom mode: Changes to settings won't affect the prompt.")
-                        .font(.caption)
-                        .foregroundColor(.orange)
+                    Text(
+                        "Using your custom prompt. Use 'Reset to Generated' to re-enable the options above."
+                    )
+                    .font(.caption)
+                    .foregroundColor(.orange)
                 }
             }
             .padding()
