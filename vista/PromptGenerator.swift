@@ -10,25 +10,6 @@ func generateOCRSystemPrompt(
     accessibilityAltText: Bool = false,
     smartContext: Bool = false
 ) -> String {
-    /**
-     Generates a system prompt for an OCR system based on the provided options.
-
-     Parameters:
-        - formatType: The output format type. Options: "plain_text", "json", "html", "xml", "rtf", "latex", "markdown"
-        - prettyFormatting: Enable pretty formatting for improved readability
-        - originalFormatting: Preserve the original formatting of the source
-        - outputLanguage: Language to translate the content to (blank preserves original language)
-        - latexMath: Enable conversion of math equations to LaTeX
-        - spellCheck: Enable error correction for OCR output
-        - lowConfidenceHighlighting: Highlight low-confidence OCR sections
-        - contextualGrouping: Enable intelligent grouping of related content
-        - accessibilityAltText: Generate alt text for images for accessibility
-        - smartContext: Parse annotations and spatial clues for context
-
-     Returns:
-        The generated OCR system prompt as a String
-     */
-
     // Define output expectations for each format
     let formatExpectations: [String: String] = [
         "plain_text":
@@ -61,7 +42,10 @@ func generateOCRSystemPrompt(
     ]
 
     // Start building the prompt
-    var prompt = "Process the provided content in the image. Follow these instructions:\n\n"
+    var prompt = "Process the provided content in the image. Follow these instructions:\n"
+
+    // Start instructions tag
+    prompt += "<instructions>\n"
 
     // Add format-specific expectations
     prompt += "\(formatExpectations[formatType, default: "Invalid format type specified."])\n\n"
@@ -72,7 +56,6 @@ func generateOCRSystemPrompt(
             "Reconstruct the text to improve readability. Remove unnecessary line breaks, adjust paragraphing, and ensure the output is polished and easy to read.\n\n"
     }
 
-    // Note that original formatting cannot be used with pretty formatting and vice versa
     if originalFormatting {
         prompt +=
             "Preserve the source document's layout exactly as it appears. Retain all original line breaks, indentation, spacing, and alignment.\n\n"
@@ -112,9 +95,11 @@ func generateOCRSystemPrompt(
             "Extract annotations, side notes, or comments. Include spatial clues to describe relationships, such as 'This caption appears below the image.'\n\n"
     }
 
+    // End instructions tag
+    prompt += "</instructions>\n"
+
     // Final instruction
-    prompt +=
-        "Extract the content from the image, adhering to the instructions above."
+    prompt += "Extract the content from the image, adhering to the instructions above."
 
     return prompt
 }
