@@ -83,7 +83,9 @@ final class GeminiClient {
         self.model = model.rawValue
     }
 
-    func processImage(_ imageData: Data) async throws -> String {
+    func processImage(_ imageData: Data, withCustomPrompt customPrompt: String? = nil) async throws
+        -> String
+    {
         let url = URL(
             string:
                 "\(Constants.baseURL)\(Constants.generateEndpoint)/\(model):generateContent?key=\(apiKey)"
@@ -98,13 +100,17 @@ final class GeminiClient {
         // Print the model being used for this API call
         print("Making Gemini API request using model: \(model)")
 
+        // Use the custom prompt if available, otherwise use the default
+        let promptText =
+            customPrompt
+            ?? "Extract all text from the image while preserving its original structure, including line breaks, indentation, bullet points, tables, and formatting as closely as possible using markdown format. Convert math equations into LaTeX; For inline formulas, enclose the formula in $…$. For displayed formulas, use $$…$$."
+
         let requestBody: [String: Any] = [
             "contents": [
                 [
                     "parts": [
                         [
-                            "text":
-                                "Extract all text from the image while preserving its original structure, including line breaks, indentation, bullet points, tables, and formatting as closely as possible using markdown format. Convert math equations into LaTeX; For inline formulas, enclose the formula in $…$. For displayed formulas, use $$…$$."
+                            "text": promptText
                         ],
                         [
                             "inline_data": [

@@ -113,6 +113,12 @@ struct SettingsContainerView: View {
                     .labelStyle(CustomSidebarLabelStyle())
                     .accessibilityLabel("General settings")
 
+                Label("Output", systemImage: "pencil.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .tag("Output")
+                    .labelStyle(CustomSidebarLabelStyle())
+                    .accessibilityLabel("Output settings")
+
                 Label("Shortcuts", systemImage: "command.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .tag("Shortcuts")
@@ -130,6 +136,8 @@ struct SettingsContainerView: View {
                 switch selectedTab {
                 case "General":
                     GeneralSettingsView()
+                case "Output":
+                    OutputSettingsView()
                 case "Shortcuts":
                     ShortcutSettingsView(keyboardManager: keyboardManager)
                 default:

@@ -67,7 +67,14 @@ class ScreenshotManager: ObservableObject {
 
         Task {
             do {
-                let extractedText = try await geminiClient.processImage(imageData)
+                // Get the custom prompt if available
+                let customPrompt = UserDefaults.standard.string(forKey: "systemPrompt") ?? ""
+
+                // Process the image with custom prompt if it exists
+                let extractedText = try await geminiClient.processImage(
+                    imageData,
+                    withCustomPrompt: customPrompt.isEmpty ? nil : customPrompt
+                )
 
                 await MainActor.run {
                     NSPasteboard.general.clearContents()
