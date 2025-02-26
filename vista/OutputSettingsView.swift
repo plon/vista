@@ -14,7 +14,6 @@ struct OutputSettingsView: View {
 
     // Language options
     private let languages = [
-        ("auto", "Auto"),
         ("en", "English"),
         ("es", "Spanish"),
         ("fr", "French"),
@@ -24,55 +23,83 @@ struct OutputSettingsView: View {
     ]
 
     var body: some View {
-        Form {
-            Section {
-                Picker("Output Format", selection: $outputFormat) {
-                    Text("JSON").tag("json")
-                    Text("HTML").tag("html")
-                    Text("LaTeX").tag("latex")
-                    Text("Plain Text").tag("plain")
-                }
-                .pickerStyle(.menu)
-                .disabled(isCustomMode)
-                .onChange(of: outputFormat) { _ in updateSystemPrompt() }
+        VSplitView {
+            // Top section - ScrollView for settings
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Output Format
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Output Format")
+                            .font(.headline)
 
-                Toggle("Keep Line Breaks", isOn: $keepLineBreaks)
-                    .disabled(isCustomMode)
-                    .onChange(of: keepLineBreaks) { _ in updateSystemPrompt() }
+                        Picker("", selection: $outputFormat) {
+                            Text("JSON").tag("json")
+                            Text("HTML").tag("html")
+                            Text("LaTeX").tag("latex")
+                            Text("Plain Text").tag("plain")
+                        }
+                        .pickerStyle(.segmented)
+                        .disabled(isCustomMode)
+                        .onChange(of: outputFormat) { _ in updateSystemPrompt() }
+                    }
 
-                Toggle("Use Pretty Formatting", isOn: $prettyFormatting)
-                    .disabled(isCustomMode)
-                    .onChange(of: prettyFormatting) { _ in updateSystemPrompt() }
+                    // Options
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Options")
+                            .font(.headline)
 
-                Picker("Language", selection: $language) {
-                    ForEach(languages, id: \.0) { code, name in
-                        Text(name).tag(code)
+                        Toggle("Keep Line Breaks", isOn: $keepLineBreaks)
+                            .disabled(isCustomMode)
+                            .onChange(of: keepLineBreaks) { _ in updateSystemPrompt() }
+
+                        Toggle("Use Pretty Formatting", isOn: $prettyFormatting)
+                            .disabled(isCustomMode)
+                            .onChange(of: prettyFormatting) { _ in updateSystemPrompt() }
+                    }
+
+                    // Language
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Language")
+                            .font(.headline)
+
+                        Picker("", selection: $language) {
+                            ForEach(languages, id: \.0) { code, name in
+                                Text(name).tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(isCustomMode)
+                        .onChange(of: language) { _ in updateSystemPrompt() }
+                    }
+
+                    // Custom Instructions
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Custom Instructions")
+                            .font(.headline)
+
+                        TextField("Enter any additional instructions", text: $customInstructions)
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(isCustomMode)
+                            .onChange(of: customInstructions) { _ in updateSystemPrompt() }
                     }
                 }
-                .pickerStyle(.menu)
-                .disabled(isCustomMode)
-                .onChange(of: language) { _ in updateSystemPrompt() }
-
-                TextField("Custom Instructions", text: $customInstructions)
-                    .disabled(isCustomMode)
-                    .onChange(of: customInstructions) { _ in updateSystemPrompt() }
-
-            } header: {
-                Text("Output Options")
-                    .foregroundStyle(.secondary)
-                    .accessibilityAddTraits(.isHeader)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
+            .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
 
-            Section {
+            // Bottom section - System Prompt
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("System Prompt")
-                        .foregroundStyle(.secondary)
+                        .font(.headline)
 
                     Spacer()
 
                     if isCustomMode {
                         Button(action: resetToGenerated) {
-                            Label("Reset", systemImage: "arrow.counterclockwise")
+                            Label("Reset to Generated", systemImage: "arrow.counterclockwise")
+                                .font(.subheadline)
                         }
                         .buttonStyle(.borderless)
                     }
@@ -80,32 +107,30 @@ struct OutputSettingsView: View {
 
                 TextEditor(text: $systemPrompt)
                     .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 240)
+                    .padding(4)
+                    .background(Color(.textBackgroundColor))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(
+                                isCustomMode ? Color.orange : Color.gray.opacity(0.3),
+                                lineWidth: isCustomMode ? 2 : 1)
+                    )
                     .onChange(of: systemPrompt) { newValue in
                         if !isCustomMode && systemPrompt != generatedPrompt {
                             isCustomMode = true
                         }
                     }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(isCustomMode ? Color.orange : Color.clear, lineWidth: 2)
-                    )
 
                 if isCustomMode {
                     Text("Custom mode: Changes to settings won't affect the prompt.")
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
-            } header: {
-                Text("Advanced")
-                    .foregroundStyle(.secondary)
-                    .accessibilityAddTraits(.isHeader)
             }
+            .padding()
+            .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
         }
-        .formStyle(.grouped)
-        .padding(.top, -20)
-        .padding(.horizontal, -10)
-        .background(.clear)
         .onAppear {
             // Generate the initial prompt if needed
             if systemPrompt.isEmpty || (!isCustomMode && generatedPrompt.isEmpty) {
