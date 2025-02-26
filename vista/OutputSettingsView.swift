@@ -133,7 +133,7 @@ struct OutputSettingsView: View {
                             InputWithHelp(
                                 label: "Output language:",
                                 helpText:
-                                    "Leave blank to keep original language, or enter a language code (e.g., 'en', 'es', 'fr') to translate"
+                                    "Leave blank to keep original language, or enter a language to translate to"
                             ) {
                                 TextField("", text: $outputLanguage)
                                     .textFieldStyle(.roundedBorder)

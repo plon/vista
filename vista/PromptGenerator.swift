@@ -114,7 +114,7 @@ func generateOCRSystemPrompt(
 
     // Final instruction
     prompt +=
-        "Extract the content from the image, adhering to the instructions above. If any ambiguity arises, prioritize accuracy and mark uncertain sections for review."
+        "Extract the content from the image, adhering to the instructions above."
 
     return prompt
 }
