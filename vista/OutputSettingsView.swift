@@ -22,7 +22,6 @@ struct InputWithHelp<Content: View>: View {
                     Text(helpText)
                         .font(.callout)
                         .padding(10)
-                        //.frame(maxWidth: 300)
                         .presentationCompactAdaptation(.popover)
                 }
 
@@ -36,16 +35,14 @@ struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
 
-    // Layout & Formatting
+    // Text Formatting
     @AppStorage("prettyFormatting") private var prettyFormatting = false
     @AppStorage("originalFormatting") private var originalFormatting = true
-
-    // Language settings
     @AppStorage("languageDetection") private var languageDetection = false
     @AppStorage("latexMath") private var latexMath = true
     @AppStorage("targetLanguage") private var targetLanguage = ""
 
-    // Advanced options
+    // Intelligence options
     @AppStorage("errorCorrection") private var errorCorrection = false
     @AppStorage("lowConfidenceHighlighting") private var lowConfidenceHighlighting = false
     @AppStorage("contextualGrouping") private var contextualGrouping = false
@@ -62,7 +59,7 @@ struct OutputSettingsView: View {
             // Top section - Settings form
             ScrollView {
                 Form {
-                    // Output Format
+                    // 1. Output Format
                     Section {
                         InputWithHelp(
                             label: "Output Format",
@@ -78,16 +75,16 @@ struct OutputSettingsView: View {
                                 Text("XML").tag("xml")
                             }
                             .labelsHidden()
-                            .pickerStyle(.menu)  // This helps with consistent sizing
+                            .pickerStyle(.menu)
                             .disabled(isCustomMode)
                             .onChange(of: formatType) { _ in updateSystemPrompt() }
                         }
                     } header: {
-                        Text("Format")
+                        Text("Output Format")
                             .foregroundStyle(.secondary)
                     }
 
-                    // Layout Settings
+                    // 2. Text Formatting
                     Section {
                         VStack(spacing: 8) {
                             InputWithHelp(
@@ -117,15 +114,7 @@ struct OutputSettingsView: View {
                                         updateSystemPrompt()
                                     }
                             }
-                        }
-                    } header: {
-                        Text("Structure")
-                            .foregroundStyle(.secondary)
-                    }
 
-                    // Language & Math
-                    Section {
-                        VStack(spacing: 8) {
                             InputWithHelp(
                                 label: "Convert math equations to LaTeX",
                                 helpText: "Represents mathematical formulas using LaTeX formatting"
@@ -158,73 +147,66 @@ struct OutputSettingsView: View {
                             }
                         }
                     } header: {
-                        Text("Language & Math")
+                        Text("Text Formatting")
                             .foregroundStyle(.secondary)
                     }
 
-                    // Advanced Options
+                    // 3. Intelligence
                     Section {
-                        DisclosureGroup("Advanced Options") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                InputWithHelp(
-                                    label: "Error correction",
-                                    helpText: "Corrects recognition mistakes and improves grammar"
-                                ) {
-                                    Toggle("", isOn: $errorCorrection)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
-                                }
-
-                                InputWithHelp(
-                                    label: "Highlight uncertain text",
-                                    helpText: "Marks low-confidence sections with [?]"
-                                ) {
-                                    Toggle("", isOn: $lowConfidenceHighlighting)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: lowConfidenceHighlighting) { _ in
-                                            updateSystemPrompt()
-                                        }
-                                }
-
-                                InputWithHelp(
-                                    label: "Group related content",
-                                    helpText:
-                                        "Intelligently groups related content into cohesive blocks"
-                                ) {
-                                    Toggle("", isOn: $contextualGrouping)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: contextualGrouping) { _ in
-                                            updateSystemPrompt()
-                                        }
-                                }
-
-                                InputWithHelp(
-                                    label: "Generate alt text for images",
-                                    helpText: "Creates descriptive text for images or graphics"
-                                ) {
-                                    Toggle("", isOn: $accessibilityAltText)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: accessibilityAltText) { _ in
-                                            updateSystemPrompt()
-                                        }
-                                }
-
-                                InputWithHelp(
-                                    label: "Extract spatial context",
-                                    helpText:
-                                        "Includes annotations and describes spatial relationships"
-                                ) {
-                                    Toggle("", isOn: $smartContext)
-                                        .disabled(isCustomMode)
-                                        .onChange(of: $smartContext.wrappedValue) { _ in
-                                            updateSystemPrompt()
-                                        }
-                                }
+                        VStack(alignment: .leading, spacing: 8) {
+                            InputWithHelp(
+                                label: "Error correction",
+                                helpText: "Corrects recognition mistakes and improves grammar"
+                            ) {
+                                Toggle("", isOn: $errorCorrection)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
                             }
-                            .padding(.top, 4)
+
+                            InputWithHelp(
+                                label: "Group related content",
+                                helpText:
+                                    "Intelligently groups related content into cohesive blocks"
+                            ) {
+                                Toggle("", isOn: $contextualGrouping)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: contextualGrouping) { _ in updateSystemPrompt() }
+                            }
+
+                            InputWithHelp(
+                                label: "Extract spatial context",
+                                helpText: "Includes annotations and describes spatial relationships"
+                            ) {
+                                Toggle("", isOn: $smartContext)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: $smartContext.wrappedValue) { _ in
+                                        updateSystemPrompt()
+                                    }
+                            }
+
+                            InputWithHelp(
+                                label: "Generate alt text for images",
+                                helpText: "Creates descriptive text for images or graphics"
+                            ) {
+                                Toggle("", isOn: $accessibilityAltText)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: accessibilityAltText) { _ in updateSystemPrompt()
+                                    }
+                            }
+
+                            InputWithHelp(
+                                label: "Highlight uncertain text",
+                                helpText: "Marks low-confidence sections with [?]"
+                            ) {
+                                Toggle("", isOn: $lowConfidenceHighlighting)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: lowConfidenceHighlighting) { _ in
+                                        updateSystemPrompt()
+                                    }
+                            }
                         }
                     } header: {
-                        Text("Advanced")
+                        Text("Intelligence")
                             .foregroundStyle(.secondary)
                     }
                 }
