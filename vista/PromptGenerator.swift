@@ -62,7 +62,7 @@ func generateOCRSystemPrompt(
     prompt += "\(formatExpectations[formatType, default: "Invalid format type specified."])\n\n"
 
     prompt +=
-        "Preserve all visual formatting and styling from the source document using the appropriate syntax and capabilities of the target format.\n\n"
+        "Preserve all visual styling (bold, italic, alignment, etc.) using the appropriate syntax and capabilities of the target format.\n\n"
 
     // Add optional features based on toggles
     if prettyFormatting {
@@ -86,7 +86,7 @@ func generateOCRSystemPrompt(
 
     if spellCheck {
         prompt +=
-            "Fix all OCR and spelling errors, using context of surrounding text when helpful.\n\n"
+            "Fix all OCR and spelling errors while maintaining any styling/formatting as specified in the above instructions. Use context of surrounding text when needed for corrections.\n\n"
     }
 
     if lowConfidenceHighlighting {
