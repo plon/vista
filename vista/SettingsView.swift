@@ -201,7 +201,6 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
-        .background(.clear)
     }
 }
 
@@ -268,6 +267,5 @@ struct ShortcutSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
-        .background(.clear)
     }
 }

@@ -22,5 +22,7 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Vista does not use the microphone.</string>
+    <key>MetalCaptureEnabled</key>
+    <true/>
 </dict>
 </plist>

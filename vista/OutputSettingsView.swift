@@ -24,71 +24,76 @@ struct OutputSettingsView: View {
 
     var body: some View {
         VSplitView {
-            // Top section - ScrollView for settings
+            // Top section - An actual Form
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Output Format
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Output Format")
-                            .font(.headline)
+                Form {
+                    Section {
+                        // Output Format
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Output Format")
+                                .font(.headline)
 
-                        Picker("", selection: $outputFormat) {
-                            Text("JSON").tag("json")
-                            Text("HTML").tag("html")
-                            Text("LaTeX").tag("latex")
-                            Text("Plain Text").tag("plain")
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(isCustomMode)
-                        .onChange(of: outputFormat) { _ in updateSystemPrompt() }
-                    }
-
-                    // Options
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Options")
-                            .font(.headline)
-
-                        Toggle("Keep Line Breaks", isOn: $keepLineBreaks)
-                            .disabled(isCustomMode)
-                            .onChange(of: keepLineBreaks) { _ in updateSystemPrompt() }
-
-                        Toggle("Use Pretty Formatting", isOn: $prettyFormatting)
-                            .disabled(isCustomMode)
-                            .onChange(of: prettyFormatting) { _ in updateSystemPrompt() }
-                    }
-
-                    // Language
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Language")
-                            .font(.headline)
-
-                        Picker("", selection: $language) {
-                            ForEach(languages, id: \.0) { code, name in
-                                Text(name).tag(code)
+                            Picker("", selection: $outputFormat) {
+                                Text("JSON").tag("json")
+                                Text("HTML").tag("html")
+                                Text("LaTeX").tag("latex")
+                                Text("Plain Text").tag("plain")
                             }
+                            .pickerStyle(.segmented)
+                            .disabled(isCustomMode)
+                            .onChange(of: outputFormat) { _ in updateSystemPrompt() }
                         }
-                        .pickerStyle(.menu)
-                        .disabled(isCustomMode)
-                        .onChange(of: language) { _ in updateSystemPrompt() }
-                    }
 
-                    // Custom Instructions
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Custom Instructions")
-                            .font(.headline)
+                        // Options
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Options")
+                                .font(.headline)
 
-                        TextField("Enter any additional instructions", text: $customInstructions)
+                            Toggle("Keep Line Breaks", isOn: $keepLineBreaks)
+                                .disabled(isCustomMode)
+                                .onChange(of: keepLineBreaks) { _ in updateSystemPrompt() }
+
+                            Toggle("Use Pretty Formatting", isOn: $prettyFormatting)
+                                .disabled(isCustomMode)
+                                .onChange(of: prettyFormatting) { _ in updateSystemPrompt() }
+                        }
+
+                        // Language
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Language")
+                                .font(.headline)
+
+                            Picker("", selection: $language) {
+                                ForEach(languages, id: \.0) { code, name in
+                                    Text(name).tag(code)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .disabled(isCustomMode)
+                            .onChange(of: language) { _ in updateSystemPrompt() }
+                        }
+
+                        // Custom Instructions
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Custom Instructions")
+                                .font(.headline)
+
+                            TextField(
+                                "Enter any additional instructions", text: $customInstructions
+                            )
                             .textFieldStyle(.roundedBorder)
                             .disabled(isCustomMode)
                             .onChange(of: customInstructions) { _ in updateSystemPrompt() }
+                        }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .formStyle(.grouped)
+                .padding(.top, -20)
+                .padding(.horizontal, -10)
             }
             .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
 
-            // Bottom section - System Prompt
+            // Bottom section - System Prompt (not a Form)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("System Prompt")
