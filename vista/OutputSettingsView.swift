@@ -40,7 +40,7 @@ struct OutputSettingsView: View {
     @AppStorage("latexMath") private var latexMath = true
 
     // Intelligence options
-    @AppStorage("errorCorrection") private var errorCorrection = false
+    @AppStorage("spellCheck") private var spellCheck = false
     @AppStorage("lowConfidenceHighlighting") private var lowConfidenceHighlighting = false
     @AppStorage("contextualGrouping") private var contextualGrouping = false
     @AppStorage("accessibilityAltText") private var accessibilityAltText = false
@@ -150,12 +150,13 @@ struct OutputSettingsView: View {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             InputWithHelp(
-                                label: "Error correction",
-                                helpText: "Corrects recognition mistakes and improves grammar"
+                                label: "Spell check",
+                                helpText:
+                                    "Automatically applies spell correction to the text"
                             ) {
-                                Toggle("", isOn: $errorCorrection)
+                                Toggle("", isOn: $spellCheck)
                                     .disabled(isCustomMode)
-                                    .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
+                                    .onChange(of: spellCheck) { _ in updateSystemPrompt() }
                             }
 
                             Divider()
@@ -318,7 +319,7 @@ struct OutputSettingsView: View {
                 originalFormatting: originalFormatting,
                 outputLanguage: outputLanguage,
                 latexMath: latexMath,
-                errorCorrection: errorCorrection,
+                spellCheck: spellCheck,
                 lowConfidenceHighlighting: lowConfidenceHighlighting,
                 contextualGrouping: contextualGrouping,
                 accessibilityAltText: accessibilityAltText,
@@ -344,7 +345,7 @@ struct OutputSettingsView: View {
         latexMath = true
 
         // Reset intelligence options
-        errorCorrection = false
+        spellCheck = false
         lowConfidenceHighlighting = false
         contextualGrouping = false
         accessibilityAltText = false

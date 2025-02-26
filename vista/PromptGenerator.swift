@@ -4,7 +4,7 @@ func generateOCRSystemPrompt(
     originalFormatting: Bool = true,
     outputLanguage: String = "",
     latexMath: Bool = true,
-    errorCorrection: Bool = false,
+    spellCheck: Bool = false,
     lowConfidenceHighlighting: Bool = false,
     contextualGrouping: Bool = false,
     accessibilityAltText: Bool = false,
@@ -19,7 +19,7 @@ func generateOCRSystemPrompt(
         - originalFormatting: Preserve the original formatting of the source
         - outputLanguage: Language to translate the content to (blank preserves original language)
         - latexMath: Enable conversion of math equations to LaTeX
-        - errorCorrection: Enable error correction for OCR output
+        - spellCheck: Enable error correction for OCR output
         - lowConfidenceHighlighting: Highlight low-confidence OCR sections
         - contextualGrouping: Enable intelligent grouping of related content
         - accessibilityAltText: Generate alt text for images for accessibility
@@ -87,9 +87,9 @@ func generateOCRSystemPrompt(
             "Convert math equations into LaTeX; For inline formulas, enclose the formula in $…$. For displayed formulas, use $$…$$.\n\n"
     }
 
-    if errorCorrection {
+    if spellCheck {
         prompt +=
-            "Refine the OCR output by correcting recognition mistakes, fixing typographical errors, and improving grammar and context.\n\n"
+            "Fix OCR and spelling errors, using context of surrounding text when helpful.\n\n"
     }
 
     if lowConfidenceHighlighting {
@@ -118,17 +118,3 @@ func generateOCRSystemPrompt(
 
     return prompt
 }
-
-// Example usage
-// let systemPrompt = generateOCRSystemPrompt(
-//     formatType: "json",
-//     prettyFormatting: true,
-//     originalFormatting: false,
-//     outputLanguage: "English",
-//     errorCorrection: true,
-//     lowConfidenceHighlighting: true,
-//     contextualGrouping: true,
-//     accessibilityAltText: true,
-//     smartContext: true
-// )
-// print(systemPrompt)
