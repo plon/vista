@@ -5,17 +5,27 @@ struct InputWithHelp<Content: View>: View {
     var label: String
     var helpText: String
     @ViewBuilder var content: () -> Content
+    @State private var showingPopover = false
 
     var body: some View {
         HStack {
             Text(label)
-            Button(action: {}) {
-                Image(systemName: "info.circle")
-                    .foregroundColor(.secondary)
-                    .padding(.trailing, 2)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .help(helpText)
+
+            // Info button with hover popover
+            Image(systemName: "info.circle")
+                .foregroundColor(.secondary)
+                .padding(.trailing, 2)
+                .onHover { hovering in
+                    showingPopover = hovering
+                }
+                .popover(isPresented: $showingPopover, arrowEdge: .top) {
+                    Text(helpText)
+                        .font(.callout)
+                        .padding(10)
+                        //.frame(maxWidth: 300)
+                        .presentationCompactAdaptation(.popover)
+                }
+
             Spacer()
             content()
         }
@@ -54,12 +64,10 @@ struct OutputSettingsView: View {
                 Form {
                     // Output Format
                     Section {
-                        HStack {
-                            Text("Output Format")
-                                .font(.headline)
-
-                            Spacer()
-
+                        InputWithHelp(
+                            label: "Output Format",
+                            helpText: "Choose the format for the processed text output"
+                        ) {
                             Picker("", selection: $formatType) {
                                 Text("Plain Text").tag("plain_text")
                                 Text("Markdown").tag("markdown")
@@ -70,7 +78,7 @@ struct OutputSettingsView: View {
                                 Text("XML").tag("xml")
                             }
                             .labelsHidden()
-                            .frame(width: 130)
+                            .pickerStyle(.menu)  // This helps with consistent sizing
                             .disabled(isCustomMode)
                             .onChange(of: formatType) { _ in updateSystemPrompt() }
                         }
