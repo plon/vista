@@ -1,5 +1,31 @@
 import SwiftUI
 
+// Reusable ToggleWithHelp View
+struct ToggleWithHelp: View {
+    var label: String
+    var helpText: String
+    @Binding var isOn: Bool
+    var isDisabled: Bool
+    var onChange: (Bool) -> Void
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Button(action: { /* Show help */ }) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
+                    .padding(.trailing, 4)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .help(helpText)
+            Spacer()
+            Toggle("", isOn: $isOn)
+                .disabled(isDisabled)
+                .onChange(of: isOn, perform: onChange)
+        }
+    }
+}
+
 struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
@@ -60,25 +86,31 @@ struct OutputSettingsView: View {
                     // Layout Settings
                     Section {
                         VStack(spacing: 8) {
-                            Toggle("Use pretty formatting", isOn: $prettyFormatting)
-                                .disabled(isCustomMode || originalFormatting)
-                                .onChange(of: prettyFormatting) { newValue in
+                            ToggleWithHelp(
+                                label: "Use pretty formatting",
+                                helpText: "Improves readability by adjusting paragraphs and layout",
+                                isOn: $prettyFormatting,
+                                isDisabled: isCustomMode || originalFormatting,
+                                onChange: { newValue in
                                     if newValue && originalFormatting {
                                         originalFormatting = false
                                     }
                                     updateSystemPrompt()
                                 }
-                                .help("Improves readability by adjusting paragraphs and layout")
+                            )
 
-                            Toggle("Preserve original formatting", isOn: $originalFormatting)
-                                .disabled(isCustomMode || prettyFormatting)
-                                .onChange(of: originalFormatting) { newValue in
+                            ToggleWithHelp(
+                                label: "Preserve original formatting",
+                                helpText: "Maintains exact layout, indentation, and line breaks",
+                                isOn: $originalFormatting,
+                                isDisabled: isCustomMode || prettyFormatting,
+                                onChange: { newValue in
                                     if newValue && prettyFormatting {
                                         prettyFormatting = false
                                     }
                                     updateSystemPrompt()
                                 }
-                                .help("Maintains exact layout, indentation, and line breaks")
+                            )
                         }
                     } header: {
                         Text("Structure")
@@ -88,15 +120,35 @@ struct OutputSettingsView: View {
                     // Language & Math
                     Section {
                         VStack(spacing: 8) {
-                            Toggle("Convert math equations to LaTeX", isOn: $latexMath)
-                                .disabled(isCustomMode)
-                                .onChange(of: latexMath) { _ in updateSystemPrompt() }
+                            HStack {
+                                Text("Convert math equations to LaTeX")
+                                    .padding(.trailing, 4)
+                                Button(action: { /* Show help for LaTeX conversion */ }) {
+                                    Image(systemName: "info.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                                 .help("Represents mathematical formulas using LaTeX formatting")
+                                Spacer()
+                                Toggle("", isOn: $latexMath)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: latexMath) { _ in updateSystemPrompt() }
+                            }
 
-                            Toggle("Detect language", isOn: $languageDetection)
-                                .disabled(isCustomMode)
-                                .onChange(of: languageDetection) { _ in updateSystemPrompt() }
+                            HStack {
+                                Text("Detect language")
+                                    .padding(.trailing, 4)
+                                Button(action: { /* Show help for language detection */ }) {
+                                    Image(systemName: "info.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                                 .help("Identifies the language of the text")
+                                Spacer()
+                                Toggle("", isOn: $languageDetection)
+                                    .disabled(isCustomMode)
+                                    .onChange(of: languageDetection) { _ in updateSystemPrompt() }
+                            }
 
                             if languageDetection {
                                 HStack {
@@ -105,10 +157,13 @@ struct OutputSettingsView: View {
                                         .textFieldStyle(.roundedBorder)
                                         .disabled(isCustomMode)
                                         .onChange(of: targetLanguage) { _ in updateSystemPrompt() }
+                                    Button(action: { /* Show help for target language */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Specify a language code (e.g., 'en', 'es', 'fr') for translation")
                                 }
-                                .help(
-                                    "Specify a language code (e.g., 'en', 'es', 'fr') for translation"
-                                )
                             }
                         }
                     } header: {
@@ -120,36 +175,75 @@ struct OutputSettingsView: View {
                     Section {
                         DisclosureGroup("Advanced Options") {
                             VStack(alignment: .leading, spacing: 8) {
-                                Toggle("Error correction", isOn: $errorCorrection)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
+                                HStack {
+                                    Text("Error correction")
+                                    Button(action: { /* Show help for error correction */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                     .help("Corrects recognition mistakes and improves grammar")
+                                    Spacer()
+                                    Toggle("", isOn: $errorCorrection)
+                                        .disabled(isCustomMode)
+                                        .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
+                                }
 
-                                Toggle("Highlight uncertain text", isOn: $lowConfidenceHighlighting)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: lowConfidenceHighlighting) { _ in
-                                        updateSystemPrompt()
+                                HStack {
+                                    Text("Highlight uncertain text")
+                                    Button(action: { /* Show help for low confidence highlighting */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
                                     }
+                                    .buttonStyle(PlainButtonStyle())
                                     .help("Marks low-confidence sections with [?]")
+                                    Spacer()
+                                    Toggle("", isOn: $lowConfidenceHighlighting)
+                                        .disabled(isCustomMode)
+                                        .onChange(of: lowConfidenceHighlighting) { _ in updateSystemPrompt() }
+                                }
 
-                                Toggle("Group related content", isOn: $contextualGrouping)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: contextualGrouping) { _ in updateSystemPrompt() }
-                                    .help(
-                                        "Intelligently groups related content into cohesive blocks")
-
-                                Toggle("Generate alt text for images", isOn: $accessibilityAltText)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: accessibilityAltText) { _ in
-                                        updateSystemPrompt()
+                                HStack {
+                                    Text("Group related content")
+                                    Button(action: { /* Show help for contextual grouping */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
                                     }
-                                    .help("Creates descriptive text for images or graphics")
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Intelligently groups related content into cohesive blocks")
+                                    Spacer()
+                                    Toggle("", isOn: $contextualGrouping)
+                                        .disabled(isCustomMode)
+                                        .onChange(of: contextualGrouping) { _ in updateSystemPrompt() }
+                                }
 
-                                Toggle("Extract spatial context", isOn: $smartContext)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: smartContext) { _ in updateSystemPrompt() }
-                                    .help(
-                                        "Includes annotations and describes spatial relationships")
+                                HStack {
+                                    Text("Generate alt text for images")
+                                    Button(action: { /* Show help for alt text generation */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Creates descriptive text for images or graphics")
+                                    Spacer()
+                                    Toggle("", isOn: $accessibilityAltText)
+                                        .disabled(isCustomMode)
+                                        .onChange(of: accessibilityAltText) { _ in updateSystemPrompt() }
+                                }
+
+                                HStack {
+                                    Text("Extract spatial context")
+                                    Button(action: { /* Show help for spatial context extraction */ }) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Includes annotations and describes spatial relationships")
+                                    Spacer()
+                                    Toggle("", isOn: $smartContext)
+                                        .disabled(isCustomMode)
+                                        .onChange(of: smartContext) { _ in updateSystemPrompt() }
+                                }
                             }
                             .padding(.top, 4)
                         }
