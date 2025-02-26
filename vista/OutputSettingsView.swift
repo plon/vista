@@ -101,6 +101,8 @@ struct OutputSettingsView: View {
                                     }
                             }
 
+                            Divider()
+
                             InputWithHelp(
                                 label: "Preserve original formatting",
                                 helpText: "Maintains exact layout, indentation, and line breaks"
@@ -115,6 +117,8 @@ struct OutputSettingsView: View {
                                     }
                             }
 
+                            Divider()
+
                             InputWithHelp(
                                 label: "Convert math equations to LaTeX",
                                 helpText: "Represents mathematical formulas using LaTeX formatting"
@@ -123,6 +127,8 @@ struct OutputSettingsView: View {
                                     .disabled(isCustomMode)
                                     .onChange(of: latexMath) { _ in updateSystemPrompt() }
                             }
+
+                            Divider()
 
                             InputWithHelp(
                                 label: "Detect language",
@@ -134,6 +140,8 @@ struct OutputSettingsView: View {
                             }
 
                             if languageDetection {
+                                Divider()
+
                                 InputWithHelp(
                                     label: "Target language:",
                                     helpText:
@@ -163,6 +171,8 @@ struct OutputSettingsView: View {
                                     .onChange(of: errorCorrection) { _ in updateSystemPrompt() }
                             }
 
+                            Divider()
+
                             InputWithHelp(
                                 label: "Group related content",
                                 helpText:
@@ -172,6 +182,8 @@ struct OutputSettingsView: View {
                                     .disabled(isCustomMode)
                                     .onChange(of: contextualGrouping) { _ in updateSystemPrompt() }
                             }
+
+                            Divider()
 
                             InputWithHelp(
                                 label: "Extract spatial context",
@@ -184,6 +196,8 @@ struct OutputSettingsView: View {
                                     }
                             }
 
+                            Divider()
+
                             InputWithHelp(
                                 label: "Generate alt text for images",
                                 helpText: "Creates descriptive text for images or graphics"
@@ -193,6 +207,8 @@ struct OutputSettingsView: View {
                                     .onChange(of: accessibilityAltText) { _ in updateSystemPrompt()
                                     }
                             }
+
+                            Divider()
 
                             InputWithHelp(
                                 label: "Highlight uncertain text",
