@@ -153,7 +153,7 @@ struct SettingsContainerView: View {
 // MARK: - General Settings View
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
-    @AppStorage("displayTarget") private var displayTarget = "builtin"
+    @AppStorage("displayTarget") private var displayTarget = "screenshot"
 
     var body: some View {
         Form {
@@ -165,17 +165,19 @@ struct GeneralSettingsView: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        displayTarget = "builtin"
+                        displayTarget = "screenshot"
                     } label: {
                         DisplayTargetOptionView(
-                            title: "Show on built-in display",
-                            iconName: "laptopcomputer",
-                            isSelected: displayTarget == "builtin"
+                            title: "Show on screenshot display",
+                            iconName: "rectangle.inset.filled.on.rectangle",
+                            isSelected: displayTarget == "screenshot"
                         )
                     }
-                    .accessibilityLabel("Show on built-in display")
-                    .accessibilityHint("Display status on the built-in screen")
-                    .accessibilityAddTraits(displayTarget == "builtin" ? .isSelected : [])
+                    .accessibilityLabel("Show on screenshot display")
+                    .accessibilityHint(
+                        "Display status on the screen where the screenshot was taken"
+                    )
+                    .accessibilityAddTraits(displayTarget == "screenshot" ? .isSelected : [])
                     .buttonStyle(.plain)
 
                     Button {

@@ -4,6 +4,12 @@ import SwiftUI
 class StatusWindowController {
     private var window: NSWindow?
     @AppStorage("popupEnabled") private var popupEnabled = true
+    @AppStorage("displayTarget") private var displayTarget = "screenshot"
+    private var lastActiveScreen: NSScreen?
+
+    func setActiveScreen(_ screen: NSScreen?) {
+        self.lastActiveScreen = screen
+    }
 
     func show(withStatus status: ProcessingStatus) {
         guard popupEnabled else { return }
@@ -19,7 +25,17 @@ class StatusWindowController {
 
         window?.contentViewController = statusView
 
-        if let screen = NSScreen.main {
+        // Choose the target screen based on setting
+        if displayTarget == "screenshot", let activeScreen = lastActiveScreen {
+            // For "screenshot" option, use the last active screen with center positioning
+            let rect = activeScreen.frame
+            let point = NSPoint(
+                x: rect.midX - 50,
+                y: rect.midY - 50
+            )
+            window?.setFrameOrigin(point)
+        } else if let screen = NSScreen.main {
+            // For "main" option or fallback, use the main screen with lower third positioning
             let rect = screen.frame
             let point = NSPoint(
                 x: rect.midX - 50,
@@ -63,7 +79,6 @@ class StatusWindowController {
         window?.level = .statusBar
         window?.isReleasedWhenClosed = false
         window?.ignoresMouseEvents = true
-        //window?.appearance = NSAppearance(named: .vibrantDark)
         window?.collectionBehavior = [.transient, .ignoresCycle]
         window?.alphaValue = 0
     }

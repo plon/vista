@@ -32,6 +32,16 @@ class ScreenshotManager: ObservableObject {
             return
         }
 
+        // Get the current mouse position to determine which screen the user is on
+        let mouseLocation = NSEvent.mouseLocation
+        let screenWithMouse =
+            NSScreen.screens.first { screen in
+                NSMouseInRect(mouseLocation, screen.frame, false)
+            } ?? NSScreen.main
+
+        // Set the active screen
+        statusWindow.setActiveScreen(screenWithMouse)
+
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(
             "vista_temp_screenshot.png")
 
