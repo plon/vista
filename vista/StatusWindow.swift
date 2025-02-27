@@ -25,24 +25,28 @@ class StatusWindowController {
 
         window?.contentViewController = statusView
 
-        // Choose the target screen based on setting
+        // Determine which screen to use
+        let targetScreen: NSScreen
         if displayTarget == "screenshot", let activeScreen = lastActiveScreen {
-            // For "screenshot" option, use the last active screen with center positioning
-            let rect = activeScreen.frame
-            let point = NSPoint(
-                x: rect.midX - 50,
-                y: rect.midY - 50
-            )
-            window?.setFrameOrigin(point)
-        } else if let screen = NSScreen.main {
-            // For "main" option or fallback, use the main screen with lower third positioning
-            let rect = screen.frame
-            let point = NSPoint(
-                x: rect.midX - 50,
-                y: rect.height * 0.25 - 50
-            )
-            window?.setFrameOrigin(point)
+            targetScreen = activeScreen
+        } else {
+            targetScreen = NSScreen.main ?? NSScreen.screens.first!
         }
+
+        // Calculate position in the lower quarter of the target screen
+        // Important: In macOS, screen coordinates are flipped - (0,0) is at bottom left
+        // And the frame origin is in global coordinates
+        let windowWidth: CGFloat = 100
+        let windowHeight: CGFloat = 100
+
+        let screenFrame = targetScreen.frame
+        let screenVisibleFrame = targetScreen.visibleFrame
+
+        let xPosition = screenFrame.origin.x + (screenFrame.width - windowWidth) / 2
+        // Position 25% up from bottom of visible area
+        let yPosition = screenVisibleFrame.origin.y + screenVisibleFrame.height * 0.25
+
+        window?.setFrameOrigin(NSPoint(x: xPosition, y: yPosition))
 
         window?.orderFront(nil)
 
