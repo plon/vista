@@ -11,7 +11,7 @@ class StatusWindowController {
         self.lastActiveScreen = screen
     }
 
-    func show(withStatus status: ProcessingStatus) {
+    func show(withStatus status: ProcessingStatus, onCancel: (() -> Void)? = nil) {
         guard popupEnabled else { return }
 
         if window == nil {
@@ -46,7 +46,12 @@ class StatusWindowController {
         // Position 25% up from bottom of visible area
         let yPosition = screenVisibleFrame.origin.y + screenVisibleFrame.height * 0.25
 
-        window?.setFrameOrigin(NSPoint(x: xPosition, y: yPosition))
+        window?.setFrame(
+            NSRect(x: xPosition, y: yPosition, width: windowWidth, height: windowHeight),
+            display: true)
+
+        // Always ignore mouse events for a standard macOS status popup
+        window?.ignoresMouseEvents = true
 
         window?.orderFront(nil)
 

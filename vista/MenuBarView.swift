@@ -8,13 +8,25 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button {
-                screenshotManager.initiateScreenshot()
-            } label: {
-                Label("Take Screenshot", systemImage: "camera.fill")
+            // Conditional button based on processing state
+            if screenshotManager.isProcessing {
+                Button {
+                    screenshotManager.cancelProcessing()
+                } label: {
+                    Label("Cancel Processing", systemImage: "xmark.circle.fill")
+                        .foregroundColor(.red)
+                }
+                .labelStyle(.titleAndIcon)
+                .keyboardShortcut(.escape, modifiers: [])
+            } else {
+                Button {
+                    screenshotManager.initiateScreenshot()
+                } label: {
+                    Label("Take Screenshot", systemImage: "camera.fill")
+                }
+                .labelStyle(.titleAndIcon)
+                .keyboardShortcut("2", modifiers: [.command, .shift])
             }
-            .labelStyle(.titleAndIcon)
-            .keyboardShortcut("2", modifiers: [.command, .shift])
 
             Divider()
 
