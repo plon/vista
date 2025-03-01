@@ -104,10 +104,7 @@ final class GeminiClient {
             // Print the model being used for this API call
             print("Making Gemini API request using model: \(model)")
 
-            // Use the custom prompt if available, otherwise use the default
-            let promptText =
-                customPrompt
-                ?? "Extract all text from the image while preserving its original structure, including line breaks, indentation, bullet points, tables, and formatting as closely as possible using markdown format. Convert math equations into LaTeX; For inline formulas, enclose the formula in $…$. For displayed formulas, use $$…$$."
+            let promptText = customPrompt ?? generateOCRSystemPrompt()
 
             let requestBody: [String: Any] = [
                 "contents": [
