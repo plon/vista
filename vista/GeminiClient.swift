@@ -58,12 +58,27 @@ struct ExtractedContent: Codable {
 }
 
 // MARK: - GeminiClient
-final class GeminiClient {
+final class GeminiClient: @unchecked Sendable {
     // MARK: - Properties
     private let apiKey: String
     private var model: String
     private let session: URLSession
-    private var activeSessionTask: URLSessionDataTask?
+    private let lock = NSLock()  // Add a lock for thread safety
+    private var _activeSessionTask: URLSessionDataTask?
+
+    // Thread-safe access to activeSessionTask
+    private var activeSessionTask: URLSessionDataTask? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _activeSessionTask
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _activeSessionTask = newValue
+        }
+    }
 
     // MARK: - Constants
     private enum Constants {
@@ -81,14 +96,20 @@ final class GeminiClient {
 
     // MARK: - Public Methods
     func setModel(_ model: GeminiModel) {
+        lock.lock()
+        defer { lock.unlock() }
         self.model = model.rawValue
     }
 
     func processImage(_ imageData: Data, withCustomPrompt customPrompt: String? = nil) async throws
         -> String
     {
-        // Use withTaskCancellationHandler to properly handle task cancellation
         return try await withTaskCancellationHandler {
+            // Capture needed values to avoid capturing self
+            let model = lock.withLock { self.model }
+            let apiKey = self.apiKey
+            let session = self.session
+
             // Create the URL request
             let url = URL(
                 string:
@@ -148,77 +169,67 @@ final class GeminiClient {
             // Check for cancellation before making the network request
             try Task.checkCancellation()
 
-            // Use a custom data task to make it cancellable
-            var responseData: Data?
-            var responseError: Error?
-            var responseHTTP: HTTPURLResponse?
-
-            let semaphore = DispatchSemaphore(value: 0)
-
-            let task = session.dataTask(with: request) { data, response, error in
-                responseData = data
-                responseError = error
-                responseHTTP = response as? HTTPURLResponse
-                semaphore.signal()
-            }
-
-            // Store the task so we can cancel it
-            self.activeSessionTask = task
-
-            // Start the request
-            task.resume()
-
-            // Wait for completion
-            // We're using async/await with a semaphore which isn't ideal,
-            // but it allows us to make URLSession cancellable
-            await withCheckedContinuation { continuation in
-                Task {
-                    // Check for cancellation periodically
-                    while semaphore.wait(timeout: .now() + 0.1) == .timedOut {
-                        // This is potentially called many times during a request
-                        do {
-                            try Task.checkCancellation()
-                        } catch {
-                            // Cancel the URLSession task
-                            task.cancel()
-                            continuation.resume()
+            // Create a task that can be properly cancelled
+            let resultData: (data: Data, response: HTTPURLResponse) =
+                try await withCheckedThrowingContinuation { continuation in
+                    let task = session.dataTask(with: request) { data, response, error in
+                        // First check for task cancellation error
+                        if let nsError = error as NSError?,
+                            nsError.domain == NSURLErrorDomain
+                                && nsError.code == NSURLErrorCancelled
+                        {
+                            // Resume with a cancellation error instead of not resuming
+                            continuation.resume(throwing: CancellationError())
                             return
                         }
+
+                        // Handle other errors
+                        if let error = error {
+                            continuation.resume(
+                                throwing: GeminiError.uploadFailed(
+                                    "Network error: \(error.localizedDescription)"))
+                            return
+                        }
+
+                        guard let data = data else {
+                            continuation.resume(throwing: GeminiError.invalidResponse)
+                            return
+                        }
+
+                        guard let httpResponse = response as? HTTPURLResponse else {
+                            continuation.resume(
+                                throwing: GeminiError.generateContentFailed("Invalid response type")
+                            )
+                            return
+                        }
+
+                        if !(200...299).contains(httpResponse.statusCode) {
+                            let errorMessage =
+                                String(data: data, encoding: .utf8) ?? "Unknown error"
+                            print("Gemini API error: \(errorMessage)")
+                            continuation.resume(
+                                throwing: GeminiError.generateContentFailed(
+                                    "Generation failed: \(errorMessage)"))
+                            return
+                        }
+
+                        // Success path - return both data and response
+                        continuation.resume(returning: (data, httpResponse))
                     }
-                    continuation.resume()
+
+                    self.activeSessionTask = task
+                    task.resume()
                 }
-            }
 
-            // Check for cancellation after the request completes
-            try Task.checkCancellation()
+            // Process the data after we've successfully received it
+            print(
+                "Gemini API response received with status code: \(resultData.response.statusCode)")
+            return try self.parseGenerationResponse(from: resultData.data)
 
-            // Handle errors from the data task
-            if let error = responseError {
-                throw GeminiError.uploadFailed("Network error: \(error.localizedDescription)")
-            }
-
-            guard let data = responseData else {
-                throw GeminiError.invalidResponse
-            }
-
-            guard let httpResponse = responseHTTP else {
-                throw GeminiError.generateContentFailed("Invalid response type")
-            }
-
-            print("Gemini API response received with status code: \(httpResponse.statusCode)")
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-                print("Gemini API error: \(errorMessage)")
-                throw GeminiError.generateContentFailed("Generation failed: \(errorMessage)")
-            }
-
-            // Parse the response
-            return try parseGenerationResponse(from: data)
-        } onCancel: {
-            // Action to perform when task is cancelled
-            self.activeSessionTask?.cancel()
-            self.activeSessionTask = nil
+        } onCancel: { [weak self] in
+            // This correctly handles user cancellation
+            self?.activeSessionTask?.cancel()
+            self?.activeSessionTask = nil
             print("Gemini API request was cancelled")
         }
     }
