@@ -1,7 +1,6 @@
 import KeyboardShortcuts
 import SwiftUI
 
-// MARK: - SettingsWindow (Window Management)
 class SettingsWindow {
     static let shared = SettingsWindow()
     private var windowController: NSWindowController?
@@ -39,14 +38,12 @@ class SettingsWindow {
     }
 
     private func setupWindowContent(window: NSWindow, keyboardManager: KeyboardShortcutManager) {
-        // Create visual effect view with automatic appearance
         let visualEffectView = NSVisualEffectView()
         visualEffectView.material = .sidebar
         visualEffectView.state = .active
         visualEffectView.blendingMode = .behindWindow
         visualEffectView.appearance = nil  // follow system appearance
 
-        // Create hosting view for the settings container
         let hostingView = NSHostingView(
             rootView:
                 SettingsContainerView(keyboardManager: keyboardManager) { newTitle in
@@ -54,7 +51,6 @@ class SettingsWindow {
                 }
         )
 
-        // Set up view hierarchy
         visualEffectView.frame = window.contentView!.bounds
         visualEffectView.autoresizingMask = [.width, .height]
 
@@ -78,7 +74,6 @@ class SettingsWindow {
     }
 }
 
-// MARK: - Custom Sidebar Label Style
 struct CustomSidebarLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
@@ -93,7 +88,6 @@ struct CustomSidebarLabelStyle: LabelStyle {
     }
 }
 
-// MARK: - Settings Container View
 struct SettingsContainerView: View {
     @ObservedObject var keyboardManager: KeyboardShortcutManager
     @State private var selectedTab: String = "General"
@@ -150,15 +144,22 @@ struct SettingsContainerView: View {
     }
 }
 
-// MARK: - General Settings View
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "screenshot"
     @AppStorage("popupSize") private var popupSize = StatusPopupSize.normal.rawValue
+    @State private var launchAtLogin: Bool = LaunchAtLoginManager.shared.isEnabled()
 
     var body: some View {
         Form {
             Section {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .accessibilityLabel("Launch at login")
+                    .accessibilityHint("Open Vista automatically when you log in")
+                    .onChange(of: launchAtLogin) { newValue in
+                        LaunchAtLoginManager.shared.setEnabled(newValue)
+                    }
+
                 Toggle("Show status popup", isOn: $popupEnabled)
                     .accessibilityLabel("Toggle status popup visibility")
                     .accessibilityHint(
@@ -211,10 +212,13 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .padding(.top, -20)
         .padding(.horizontal, -10)
+        .onAppear {
+            // Refresh the state when the view appears
+            launchAtLogin = LaunchAtLoginManager.shared.isEnabled()
+        }
     }
 }
 
-// MARK: - Display Target Option View
 struct DisplayTargetOptionView: View {
     let title: String
     let iconName: String
@@ -244,7 +248,6 @@ struct DisplayTargetOptionView: View {
     }
 }
 
-// MARK: - Shortcut Settings View
 struct ShortcutSettingsView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
     @ObservedObject var keyboardManager: KeyboardShortcutManager
