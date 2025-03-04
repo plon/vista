@@ -1,10 +1,53 @@
 import AppKit
 import SwiftUI
 
+enum StatusPopupSize: String, CaseIterable {
+    case normal = "normal"
+    case large = "large"
+
+    var dimensions: (width: CGFloat, height: CGFloat) {
+        switch self {
+        case .normal:
+            return (100, 100)
+        case .large:
+            return (160, 160)
+        }
+    }
+
+    var iconSize: CGFloat {
+        switch self {
+        case .normal: return 32
+        case .large: return 48
+        }
+    }
+
+    var fontSize: CGFloat {
+        switch self {
+        case .normal: return 12
+        case .large: return 14
+        }
+    }
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .normal: return 13
+        case .large: return 16
+        }
+    }
+
+    var verticalSpacing: CGFloat {
+        switch self {
+        case .normal: return 8
+        case .large: return 12
+        }
+    }
+}
+
 class StatusWindowController {
     private var window: NSWindow?
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "screenshot"
+    @AppStorage("popupSize") private var popupSize = StatusPopupSize.normal.rawValue
     private var lastActiveScreen: NSScreen?
 
     func setActiveScreen(_ screen: NSScreen?) {
@@ -18,9 +61,14 @@ class StatusWindowController {
             setupWindow()
         }
 
+        // Get the current popup size
+        let size = StatusPopupSize(rawValue: popupSize) ?? .normal
+        let windowWidth = size.dimensions.width
+        let windowHeight = size.dimensions.height
+
         let statusView = NSHostingController(
-            rootView: StatusWindowView(status: status)
-                .frame(width: 100, height: 100)
+            rootView: StatusWindowView(status: status, size: size)
+                .frame(width: windowWidth, height: windowHeight)
         )
 
         window?.contentViewController = statusView
@@ -34,16 +82,10 @@ class StatusWindowController {
         }
 
         // Calculate position in the lower quarter of the target screen
-        // Important: In macOS, screen coordinates are flipped - (0,0) is at bottom left
-        // And the frame origin is in global coordinates
-        let windowWidth: CGFloat = 100
-        let windowHeight: CGFloat = 100
-
         let screenFrame = targetScreen.frame
         let screenVisibleFrame = targetScreen.visibleFrame
 
         let xPosition = screenFrame.origin.x + (screenFrame.width - windowWidth) / 2
-        // Position 25% up from bottom of visible area
         let yPosition = screenVisibleFrame.origin.y + screenVisibleFrame.height * 0.25
 
         window?.setFrame(
@@ -67,7 +109,7 @@ class StatusWindowController {
             autoHide(after: 1.0)
         case .error(let message):
             print("Error occurred: \(message)")
-            let duration = message.contains("No text detected") ? 2.0 : 2.0
+            let duration: TimeInterval = 2.0
             autoHide(after: duration)
         default:
             break
@@ -75,8 +117,12 @@ class StatusWindowController {
     }
 
     private func setupWindow() {
+        let size = StatusPopupSize(rawValue: popupSize) ?? .normal
+        let windowWidth = size.dimensions.width
+        let windowHeight = size.dimensions.height
+
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -110,35 +156,42 @@ class StatusWindowController {
 
 private struct StatusWindowView: View {
     let status: ProcessingStatus
+    let size: StatusPopupSize
+
+    init(status: ProcessingStatus, size: StatusPopupSize = .normal) {
+        self.status = status
+        self.size = size
+    }
 
     var body: some View {
-        StatusOverlay(status: status)
+        StatusOverlay(status: status, size: size)
     }
 }
 
 private struct StatusOverlay: View {
     let status: ProcessingStatus
+    let size: StatusPopupSize
     @State private var isAnimating = false
 
     var body: some View {
         ZStack {
-            VStack(spacing: 8) {
+            VStack(spacing: size.verticalSpacing) {
                 statusIcon
-                    .font(.system(size: 32))
+                    .font(.system(size: size.iconSize))
                     .foregroundStyle(.white)
 
                 if let message = statusMessage {
                     Text(message)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: size.fontSize, weight: .medium))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 100, height: 100)
+        .frame(width: size.dimensions.width, height: size.dimensions.height)
         .background {
-            RoundedRectangle(cornerRadius: 13)
+            RoundedRectangle(cornerRadius: size.cornerRadius)
                 .fill(.regularMaterial)
         }
     }
@@ -189,14 +242,5 @@ private struct StatusOverlay: View {
                 EmptyView()
             }
         }
-    }
-}
-
-#Preview {
-    Group {
-        StatusWindowView(status: .processing)
-        StatusWindowView(status: .success)
-        StatusWindowView(status: .error("Error occurred"))
-        StatusWindowView(status: .error("No text detected in image"))
     }
 }

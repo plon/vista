@@ -154,6 +154,7 @@ struct SettingsContainerView: View {
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "screenshot"
+    @AppStorage("popupSize") private var popupSize = StatusPopupSize.normal.rawValue
 
     var body: some View {
         Form {
@@ -162,6 +163,13 @@ struct GeneralSettingsView: View {
                     .accessibilityLabel("Toggle status popup visibility")
                     .accessibilityHint(
                         "When enabled, a status popup will be shown during screenshot processing")
+
+                Picker("Popup size:", selection: $popupSize) {
+                    Text("Normal").tag(StatusPopupSize.normal.rawValue)
+                    Text("Large").tag(StatusPopupSize.large.rawValue)
+                }
+                .accessibilityLabel("Status popup size")
+                .accessibilityHint("Choose between normal and large popup size")
 
                 HStack(spacing: 8) {
                     Button {
