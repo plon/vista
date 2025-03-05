@@ -148,6 +148,7 @@ struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "screenshot"
     @AppStorage("popupSize") private var popupSize = StatusPopupSize.normal.rawValue
+    @AppStorage("hapticFeedbackEnabled") private var hapticFeedbackEnabled = true
     @State private var launchAtLogin: Bool = LaunchAtLoginManager.shared.isEnabled()
 
     var body: some View {
@@ -205,6 +206,18 @@ struct GeneralSettingsView: View {
                 }
             } header: {
                 Text("System")
+                    .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+            }
+
+            Section {
+                Toggle("Enable haptic feedback", isOn: $hapticFeedbackEnabled)
+                    .accessibilityLabel("Toggle haptic feedback")
+                    .accessibilityHint(
+                        "When enabled, your Mac will give haptic feedback when processing starts and completes"
+                    )
+            } header: {
+                Text("Behavior")
                     .foregroundStyle(.secondary)
                     .accessibilityAddTraits(.isHeader)
             }

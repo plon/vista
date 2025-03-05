@@ -106,14 +106,17 @@ class ScreenshotManager: ObservableObject {
                 self?.cancelProcessing()
             })
 
-        // Provide haptic feedback that processing has begun
-        Task {
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
-            let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
-            hapticFeedback.perform(
-                NSHapticFeedbackManager.FeedbackPattern.alignment,
-                performanceTime: .now
-            )
+        // Provide haptic feedback that processing has begun if enabled
+        let hapticFeedbackEnabled = UserDefaults.standard.bool(forKey: "hapticFeedbackEnabled")
+        if hapticFeedbackEnabled {
+            Task {
+                try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
+                let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
+                hapticFeedback.perform(
+                    NSHapticFeedbackManager.FeedbackPattern.alignment,
+                    performanceTime: .now
+                )
+            }
         }
 
         // Store the task so we can cancel it later
@@ -156,11 +159,16 @@ class ScreenshotManager: ObservableObject {
                 await MainActor.run {
                     self.copyToClipboard(extractedText)
 
-                    let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
-                    hapticFeedback.perform(
-                        NSHapticFeedbackManager.FeedbackPattern.levelChange,
-                        performanceTime: .now
-                    )
+                    // Haptic feedback for success if enabled
+                    let hapticFeedbackEnabled = UserDefaults.standard.bool(
+                        forKey: "hapticFeedbackEnabled")
+                    if hapticFeedbackEnabled {
+                        let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
+                        hapticFeedback.perform(
+                            NSHapticFeedbackManager.FeedbackPattern.levelChange,
+                            performanceTime: .now
+                        )
+                    }
 
                     self.isProcessing = false
                     self.status = .success
