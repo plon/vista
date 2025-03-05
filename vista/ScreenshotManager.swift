@@ -3,6 +3,14 @@ import SwiftUI
 import Vision
 import VisionKit
 
+enum ProcessingStatus: Equatable {
+    case none
+    case processing
+    case success
+    case cancelled
+    case error(String)
+}
+
 enum OCRError: Error {
     case noTextDetected
     case recognitionFailed(String)
