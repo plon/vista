@@ -106,6 +106,16 @@ class ScreenshotManager: ObservableObject {
                 self?.cancelProcessing()
             })
 
+        // Provide haptic feedback that processing has begun
+        Task {
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
+            let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
+            hapticFeedback.perform(
+                NSHapticFeedbackManager.FeedbackPattern.alignment,
+                performanceTime: .now
+            )
+        }
+
         // Store the task so we can cancel it later
         activeTask = Task {
             do {
@@ -144,8 +154,14 @@ class ScreenshotManager: ObservableObject {
                 }
 
                 await MainActor.run {
-                    // Use the copyToClipboard method instead of directly setting the clipboard
                     self.copyToClipboard(extractedText)
+
+                    let hapticFeedback = NSHapticFeedbackManager.defaultPerformer
+                    hapticFeedback.perform(
+                        NSHapticFeedbackManager.FeedbackPattern.levelChange,
+                        performanceTime: .now
+                    )
+
                     self.isProcessing = false
                     self.status = .success
                     self.statusWindow.show(withStatus: .success, onCancel: nil)
