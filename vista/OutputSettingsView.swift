@@ -29,9 +29,44 @@ struct InputWithHelp<Content: View>: View {
     }
 }
 
+struct SettingsToggle: View {
+    let label: String
+    let helpText: String
+    @Binding var isOn: Bool
+    var isDisabled: Bool
+    var onChange: ((Bool) -> Void)?
+
+    var body: some View {
+        InputWithHelp(label: label, helpText: helpText) {
+            Toggle("", isOn: $isOn)
+                .disabled(isDisabled)
+                .onChange(of: isOn) { newValue in
+                    onChange?(newValue)
+                }
+        }
+    }
+}
+
+struct SettingsSection<Content: View>: View {
+    let title: String
+    let isDisabled: Bool
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Section {
+            content()
+        } header: {
+            Text(title)
+                .foregroundStyle(.secondary)
+        }
+        .opacity(isDisabled ? 0.5 : 1.0)
+    }
+}
+
 struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
+    @AppStorage("useVisionKit") private var useVisionKit = false
 
     // Text Formatting
     @AppStorage("prettyFormatting") private var prettyFormatting = false
@@ -51,16 +86,80 @@ struct OutputSettingsView: View {
     @AppStorage("systemPrompt") private var systemPrompt = ""
     @State private var generatedPrompt: String = ""
 
-    // Add this property to track if we're showing the reset confirmation alert
+    // Store previous Gemini settings
+    @State private var geminiSettings = GeminiSettings()
+
     @State private var showingResetConfirmation = false
+
+    private var isSettingsDisabled: Bool {
+        isCustomMode || useVisionKit
+    }
+
+    // Structure to store Gemini settings
+    private struct GeminiSettings {
+        var formatType = "plain_text"
+        var prettyFormatting = false
+        var originalFormatting = true
+        var outputLanguage = ""
+        var latexMath = true
+        var spellCheck = false
+        var lowConfidenceHighlighting = false
+        var contextualGrouping = false
+        var accessibilityAltText = false
+        var smartContext = false
+    }
 
     var body: some View {
         VSplitView {
-            // Top section - Settings form
             ScrollView {
                 Form {
-                    // 1. Output Format
-                    Section {
+                    SettingsSection(title: "OCR Provider", isDisabled: false) {
+                        InputWithHelp(
+                            label: "OCR Provider",
+                            helpText: "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
+                        ) {
+                            Picker("", selection: $useVisionKit) {
+                                Text("Gemini").tag(false)
+                                Text("VisionKit").tag(true)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .onChange(of: useVisionKit) { newValue in
+                                if newValue {
+                                    // Store current Gemini settings before switching to VisionKit
+                                    geminiSettings = GeminiSettings(
+                                        formatType: formatType,
+                                        prettyFormatting: prettyFormatting,
+                                        originalFormatting: originalFormatting,
+                                        outputLanguage: outputLanguage,
+                                        latexMath: latexMath,
+                                        spellCheck: spellCheck,
+                                        lowConfidenceHighlighting: lowConfidenceHighlighting,
+                                        contextualGrouping: contextualGrouping,
+                                        accessibilityAltText: accessibilityAltText,
+                                        smartContext: smartContext
+                                    )
+                                    // Switch to VisionKit settings
+                                    resetForVisionKit()
+                                } else {
+                                    // Restore previous Gemini settings
+                                    formatType = geminiSettings.formatType
+                                    prettyFormatting = geminiSettings.prettyFormatting
+                                    originalFormatting = geminiSettings.originalFormatting
+                                    outputLanguage = geminiSettings.outputLanguage
+                                    latexMath = geminiSettings.latexMath
+                                    spellCheck = geminiSettings.spellCheck
+                                    lowConfidenceHighlighting = geminiSettings.lowConfidenceHighlighting
+                                    contextualGrouping = geminiSettings.contextualGrouping
+                                    accessibilityAltText = geminiSettings.accessibilityAltText
+                                    smartContext = geminiSettings.smartContext
+                                    updateSystemPrompt()
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsSection(title: "Output Format", isDisabled: isSettingsDisabled) {
                         InputWithHelp(
                             label: "Output Format",
                             helpText: "Choose the format for the processed text output"
@@ -76,142 +175,107 @@ struct OutputSettingsView: View {
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .disabled(isCustomMode)
+                            .disabled(isSettingsDisabled)
                             .onChange(of: formatType) { _ in updateSystemPrompt() }
                         }
-                    } header: {
-                        Text("Output Format")
-                            .foregroundStyle(.secondary)
                     }
 
-                    // 2. Text Formatting
-                    Section {
+                    SettingsSection(title: "Text Formatting", isDisabled: isSettingsDisabled) {
                         VStack(spacing: 8) {
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Use pretty formatting",
-                                helpText: "Improves readability by adjusting paragraphs and layout"
-                            ) {
-                                Toggle("", isOn: $prettyFormatting)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: prettyFormatting) { newValue in
-                                        if newValue {
-                                            originalFormatting = false
-                                        }
-                                        updateSystemPrompt()
-                                    }
+                                helpText: "Improves readability by adjusting paragraphs and layout",
+                                isOn: $prettyFormatting,
+                                isDisabled: isSettingsDisabled
+                            ) { newValue in
+                                if newValue {
+                                    originalFormatting = false
+                                }
+                                updateSystemPrompt()
                             }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Preserve original formatting",
-                                helpText: "Maintains exact layout, indentation, and line breaks"
-                            ) {
-                                Toggle("", isOn: $originalFormatting)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: originalFormatting) { newValue in
-                                        if newValue {
-                                            prettyFormatting = false
-                                        }
-                                        updateSystemPrompt()
-                                    }
+                                helpText: "Maintains exact layout, indentation, and line breaks",
+                                isOn: $originalFormatting,
+                                isDisabled: isSettingsDisabled
+                            ) { newValue in
+                                if newValue {
+                                    prettyFormatting = false
+                                }
+                                updateSystemPrompt()
                             }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Convert math equations to LaTeX",
-                                helpText: "Represents mathematical formulas using LaTeX formatting"
-                            ) {
-                                Toggle("", isOn: $latexMath)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: latexMath) { _ in updateSystemPrompt() }
-                            }
+                                helpText: "Represents mathematical formulas using LaTeX formatting",
+                                isOn: $latexMath,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
 
                             Divider()
 
                             InputWithHelp(
                                 label: "Output language:",
-                                helpText:
-                                    "Leave blank to keep original language, or enter a language to translate to"
+                                helpText: "Leave blank to keep original language, or enter a language to translate to"
                             ) {
                                 TextField("", text: $outputLanguage)
                                     .textFieldStyle(.roundedBorder)
-                                    .disabled(isCustomMode)
+                                    .disabled(isSettingsDisabled)
                                     .onChange(of: outputLanguage) { _ in updateSystemPrompt() }
                             }
                         }
-                    } header: {
-                        Text("Text Formatting")
-                            .foregroundStyle(.secondary)
                     }
 
-                    // 3. Intelligence
-                    Section {
+                    SettingsSection(title: "Intelligence", isDisabled: isSettingsDisabled) {
                         VStack(alignment: .leading, spacing: 8) {
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Spell check",
-                                helpText:
-                                    "Automatically applies spell correction to the text"
-                            ) {
-                                Toggle("", isOn: $spellCheck)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: spellCheck) { _ in updateSystemPrompt() }
-                            }
+                                helpText: "Automatically applies spell correction to the text",
+                                isOn: $spellCheck,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Group related content",
-                                helpText:
-                                    "Intelligently groups related content into cohesive blocks"
-                            ) {
-                                Toggle("", isOn: $contextualGrouping)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: contextualGrouping) { _ in updateSystemPrompt() }
-                            }
+                                helpText: "Intelligently groups related content into cohesive blocks",
+                                isOn: $contextualGrouping,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Extract spatial context",
-                                helpText: "Includes annotations and describes spatial relationships"
-                            ) {
-                                Toggle("", isOn: $smartContext)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: $smartContext.wrappedValue) { _ in
-                                        updateSystemPrompt()
-                                    }
-                            }
+                                helpText: "Includes annotations and describes spatial relationships",
+                                isOn: $smartContext,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Generate alt text for images",
-                                helpText: "Creates descriptive text for images or graphics"
-                            ) {
-                                Toggle("", isOn: $accessibilityAltText)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: accessibilityAltText) { _ in updateSystemPrompt()
-                                    }
-                            }
+                                helpText: "Creates descriptive text for images or graphics",
+                                isOn: $accessibilityAltText,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
 
                             Divider()
 
-                            InputWithHelp(
+                            SettingsToggle(
                                 label: "Highlight uncertain text",
-                                helpText: "Marks low-confidence sections with [?]"
-                            ) {
-                                Toggle("", isOn: $lowConfidenceHighlighting)
-                                    .disabled(isCustomMode)
-                                    .onChange(of: lowConfidenceHighlighting) { _ in
-                                        updateSystemPrompt()
-                                    }
-                            }
+                                helpText: "Marks low-confidence sections with [?]",
+                                isOn: $lowConfidenceHighlighting,
+                                isDisabled: isSettingsDisabled
+                            ) { _ in updateSystemPrompt() }
                         }
-                    } header: {
-                        Text("Intelligence")
-                            .foregroundStyle(.secondary)
                     }
 
                     Section {
@@ -221,7 +285,6 @@ struct OutputSettingsView: View {
                         EmptyView()
                     }
 
-                    // 4. Reset to Defaults section
                     Section {
                         Button(action: { showingResetConfirmation = true }) {
                             HStack {
@@ -250,7 +313,7 @@ struct OutputSettingsView: View {
             }
             .frame(minHeight: 120, idealHeight: 300, maxHeight: .infinity)
 
-            // Bottom section - System Prompt
+            // Bottom section (System Prompt)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("System Prompt")
@@ -258,7 +321,7 @@ struct OutputSettingsView: View {
 
                     Spacer()
 
-                    if isCustomMode {
+                    if isCustomMode && !useVisionKit {
                         Button(action: resetToGenerated) {
                             Label("Reset to Generated", systemImage: "arrow.counterclockwise")
                                 .font(.subheadline)
@@ -269,44 +332,53 @@ struct OutputSettingsView: View {
                     }
                 }
 
-                TextEditor(text: $systemPrompt)
-                    .font(.system(.body, design: .monospaced))
-                    .padding(4)
+                if useVisionKit {
+                    HStack(spacing: 12) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                        Text("System prompt is not used when VisionKit is selected. VisionKit performs local OCR without additional processing.")
+                            .foregroundStyle(.secondary)
+                            .font(.callout)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.textBackgroundColor))
                     .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(
-                                isCustomMode ? Color.orange : Color.gray.opacity(0.3),
-                                lineWidth: isCustomMode ? 2 : 1)
-                    )
-                    .onChange(of: systemPrompt) { newValue in
-                        if !isCustomMode && systemPrompt != generatedPrompt {
-                            isCustomMode = true
+                } else {
+                    TextEditor(text: $systemPrompt)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(4)
+                        .background(Color(.textBackgroundColor))
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(
+                                    isCustomMode ? Color.orange : Color.gray.opacity(0.3),
+                                    lineWidth: isCustomMode ? 2 : 1)
+                        )
+                        .onChange(of: systemPrompt) { newValue in
+                            if !isCustomMode && systemPrompt != generatedPrompt {
+                                isCustomMode = true
+                            }
                         }
-                    }
 
-                if isCustomMode {
-                    Text(
-                        "Using your custom prompt. Use 'Reset to Generated' to re-enable the options above."
-                    )
-                    .font(.caption)
-                    .foregroundColor(.orange)
+                    if isCustomMode {
+                        Text(
+                            "Using your custom prompt. Use 'Reset to Generated' to re-enable the options above."
+                        )
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    }
                 }
             }
             .padding()
             .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
         }
         .onAppear {
-            // Generate the initial prompt if needed
             if systemPrompt.isEmpty {
-                // First time use - initialize with default prompt
                 updateSystemPrompt()
             } else if !isCustomMode {
-                // Regenerate the prompt to match current settings
                 updateSystemPrompt()
-            } else {
-                // Custom mode - keep the existing prompt
             }
         }
     }
@@ -335,7 +407,6 @@ struct OutputSettingsView: View {
     }
 
     private func resetToDefaults() {
-        // Reset format
         formatType = "plain_text"
 
         // Reset text formatting
@@ -356,5 +427,23 @@ struct OutputSettingsView: View {
 
         // Regenerate the system prompt based on default settings
         updateSystemPrompt()
+    }
+
+    private func resetForVisionKit() {
+        // Reset format to plain text when using VisionKit
+        formatType = "plain_text"
+        
+        // Disable all formatting options
+        prettyFormatting = false
+        originalFormatting = false
+        outputLanguage = ""
+        latexMath = false
+        
+        // Disable intelligence features
+        spellCheck = false
+        contextualGrouping = false
+        smartContext = false
+        accessibilityAltText = false
+        lowConfidenceHighlighting = false
     }
 }
