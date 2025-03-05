@@ -66,7 +66,7 @@ struct SettingsSection<Content: View>: View {
 struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
-    @AppStorage("useVisionKit") private var useVisionKit = false
+    @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
 
     // Text Formatting
     @AppStorage("prettyFormatting") private var prettyFormatting = false
@@ -90,9 +90,10 @@ struct OutputSettingsView: View {
     @State private var geminiSettings = GeminiSettings()
 
     @State private var showingResetConfirmation = false
+    @State private var previousModelType: OCRModelType = OCRModelType.default
 
     private var isSettingsDisabled: Bool {
-        isCustomMode || useVisionKit
+        isCustomMode || selectedModelType == .visionKit
     }
 
     // Structure to store Gemini settings
@@ -116,16 +117,25 @@ struct OutputSettingsView: View {
                     SettingsSection(title: "OCR Provider", isDisabled: false) {
                         InputWithHelp(
                             label: "OCR Provider",
-                            helpText: "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
+                            helpText:
+                                "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
                         ) {
-                            Picker("", selection: $useVisionKit) {
-                                Text("Gemini").tag(false)
-                                Text("VisionKit").tag(true)
+                            Picker("", selection: $selectedModelType) {
+                                Group {
+                                    Text("Gemini Flash").tag(OCRModelType.geminiFlash)
+                                    Text("Gemini Flash Lite").tag(OCRModelType.geminiFlashLite)
+                                    Text("Gemini Pro").tag(OCRModelType.geminiPro)
+                                }
+                                Divider()
+                                Text("VisionKit (Local)").tag(OCRModelType.visionKit)
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .onChange(of: useVisionKit) { newValue in
-                                if newValue {
+                            .onChange(of: selectedModelType) { newValue in
+                                let wasVisionKit = previousModelType == .visionKit
+                                let isNowVisionKit = newValue == .visionKit
+
+                                if isNowVisionKit && !wasVisionKit {
                                     // Store current Gemini settings before switching to VisionKit
                                     geminiSettings = GeminiSettings(
                                         formatType: formatType,
@@ -141,20 +151,23 @@ struct OutputSettingsView: View {
                                     )
                                     // Switch to VisionKit settings
                                     resetForVisionKit()
-                                } else {
-                                    // Restore previous Gemini settings
+                                } else if wasVisionKit && !isNowVisionKit {
+                                    // Restore previous Gemini settings when switching from VisionKit to any Gemini model
                                     formatType = geminiSettings.formatType
                                     prettyFormatting = geminiSettings.prettyFormatting
                                     originalFormatting = geminiSettings.originalFormatting
                                     outputLanguage = geminiSettings.outputLanguage
                                     latexMath = geminiSettings.latexMath
                                     spellCheck = geminiSettings.spellCheck
-                                    lowConfidenceHighlighting = geminiSettings.lowConfidenceHighlighting
+                                    lowConfidenceHighlighting =
+                                        geminiSettings.lowConfidenceHighlighting
                                     contextualGrouping = geminiSettings.contextualGrouping
                                     accessibilityAltText = geminiSettings.accessibilityAltText
                                     smartContext = geminiSettings.smartContext
                                     updateSystemPrompt()
                                 }
+
+                                previousModelType = newValue
                             }
                         }
                     }
@@ -221,7 +234,8 @@ struct OutputSettingsView: View {
 
                             InputWithHelp(
                                 label: "Output language:",
-                                helpText: "Leave blank to keep original language, or enter a language to translate to"
+                                helpText:
+                                    "Leave blank to keep original language, or enter a language to translate to"
                             ) {
                                 TextField("", text: $outputLanguage)
                                     .textFieldStyle(.roundedBorder)
@@ -244,7 +258,8 @@ struct OutputSettingsView: View {
 
                             SettingsToggle(
                                 label: "Group related content",
-                                helpText: "Intelligently groups related content into cohesive blocks",
+                                helpText:
+                                    "Intelligently groups related content into cohesive blocks",
                                 isOn: $contextualGrouping,
                                 isDisabled: isSettingsDisabled
                             ) { _ in updateSystemPrompt() }
@@ -253,7 +268,8 @@ struct OutputSettingsView: View {
 
                             SettingsToggle(
                                 label: "Extract spatial context",
-                                helpText: "Includes annotations and describes spatial relationships",
+                                helpText:
+                                    "Includes annotations and describes spatial relationships",
                                 isOn: $smartContext,
                                 isDisabled: isSettingsDisabled
                             ) { _ in updateSystemPrompt() }
@@ -321,7 +337,7 @@ struct OutputSettingsView: View {
 
                     Spacer()
 
-                    if isCustomMode && !useVisionKit {
+                    if isCustomMode && selectedModelType != .visionKit {
                         Button(action: resetToGenerated) {
                             Label("Reset to Generated", systemImage: "arrow.counterclockwise")
                                 .font(.subheadline)
@@ -332,13 +348,15 @@ struct OutputSettingsView: View {
                     }
                 }
 
-                if useVisionKit {
+                if selectedModelType == .visionKit {
                     HStack(spacing: 12) {
                         Image(systemName: "info.circle")
                             .foregroundStyle(.secondary)
-                        Text("System prompt is not used when VisionKit is selected. VisionKit performs local OCR without additional processing.")
-                            .foregroundStyle(.secondary)
-                            .font(.callout)
+                        Text(
+                            "System prompt is not used when VisionKit is selected. VisionKit performs local OCR without additional processing."
+                        )
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -432,13 +450,13 @@ struct OutputSettingsView: View {
     private func resetForVisionKit() {
         // Reset format to plain text when using VisionKit
         formatType = "plain_text"
-        
+
         // Disable all formatting options
         prettyFormatting = false
         originalFormatting = false
         outputLanguage = ""
         latexMath = false
-        
+
         // Disable intelligence features
         spellCheck = false
         contextualGrouping = false

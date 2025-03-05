@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @AppStorage("shortcutEnabled") private var shortcutEnabled = true
-    @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
+    @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
     @ObservedObject var screenshotManager: ScreenshotManager
     @ObservedObject var keyboardManager: KeyboardShortcutManager
 
@@ -34,8 +34,8 @@ struct MenuBarView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Picker(selection: $selectedModel) {
-                ForEach(Array(GeminiModel.allCases.enumerated()), id: \.element) { index, model in
+            Picker(selection: $selectedModelType) {
+                ForEach(Array(OCRModelType.allCases.enumerated()), id: \.element) { index, model in
                     if index > 0 {
                         Divider()
                     }
@@ -46,8 +46,8 @@ struct MenuBarView: View {
                 Label("Vision Model", systemImage: "sparkles")
             }
             .labelStyle(.titleAndIcon)
-            .onChange(of: selectedModel) { _ in
-                screenshotManager.updateModel(selectedModel)
+            .onChange(of: selectedModelType) { _ in
+                screenshotManager.updateModel(selectedModelType)
             }
 
             Divider()

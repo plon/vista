@@ -6,6 +6,12 @@ struct VistaApp: App {
     @StateObject private var keyboardManager: KeyboardShortcutManager
 
     init() {
+        // Set default model if not already set in UserDefaults
+        if UserDefaults.standard.string(forKey: "selectedModelType") == nil {
+            UserDefaults.standard.set(
+                OCRModelType.geminiFlash.rawValue, forKey: "selectedModelType")
+        }
+
         let manager = ScreenshotManager()
         _keyboardManager = StateObject(
             wrappedValue: KeyboardShortcutManager(screenshotManager: manager))

@@ -3,85 +3,37 @@ import SwiftUI
 import Vision
 import VisionKit
 
-protocol OCRService {
-    func performOCR(imageData: Data) async throws -> String
-}
-
 enum OCRError: Error {
     case noTextDetected
     case recognitionFailed(String)
     case invalidImageData
 }
 
-class VisionKitOCR: OCRService {
-    func performOCR(imageData: Data) async throws -> String {
-        guard let image = NSImage(data: imageData) else {
-            throw OCRError.invalidImageData
-        }
-        
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            throw OCRError.invalidImageData
-        }
-        
-        let requestHandler = VNImageRequestHandler(cgImage: cgImage)
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        
-        do {
-            try requestHandler.perform([request])
-            guard let observations = request.results else {
-                throw OCRError.recognitionFailed("No results returned")
-            }
-            
-            let recognizedText = observations.compactMap { observation in
-                observation.topCandidates(1).first?.string
-            }.joined(separator: "\n")
-            
-            if recognizedText.isEmpty {
-                throw OCRError.noTextDetected
-            }
-            
-            return recognizedText
-        } catch {
-            throw OCRError.recognitionFailed(error.localizedDescription)
-        }
-    }
-}
-
-class GeminiOCR: OCRService {
-    private let geminiClient: GeminiClient
-    
-    init(geminiClient: GeminiClient) {
-        self.geminiClient = geminiClient
-    }
-    
-    func performOCR(imageData: Data) async throws -> String {
-        let systemPrompt = UserDefaults.standard.string(forKey: "systemPrompt") ?? generateOCRSystemPrompt()
-        return try await geminiClient.processImage(imageData, withCustomPrompt: systemPrompt)
-    }
-}
-
 class ScreenshotManager: ObservableObject {
     @Published var status: ProcessingStatus = .none
     @Published var isProcessing = false
-    @AppStorage("selectedModel") private var selectedModel = GeminiModel.flash
-    @AppStorage("useVisionKit") private var useVisionKit = false
-    private lazy var geminiClient = GeminiClient(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
-    private lazy var geminiOCR: GeminiOCR = GeminiOCR(geminiClient: geminiClient)
-    private lazy var visionKitOCR = VisionKitOCR()
+    @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
+    private let modelManager: ModelManager
     private let statusWindow = StatusWindowController()
 
     // Track the active task so we can cancel it
     private var activeTask: Task<Void, Never>?
 
     init() {
-        geminiClient.setModel(selectedModel)
+        // Set default model if not already set in UserDefaults
+        if UserDefaults.standard.string(forKey: "selectedModelType") == nil {
+            UserDefaults.standard.set(
+                OCRModelType.geminiFlash.rawValue, forKey: "selectedModelType")
+        }
+
+        self.modelManager = ModelManager(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
+        self.modelManager.setModel(selectedModelType)
     }
 
-    func updateModel(_ model: GeminiModel) {
-        selectedModel = model
-        print("Updating Gemini model to: \(model.displayName)")
-        geminiClient.setModel(model)
+    func updateModel(_ model: OCRModelType) {
+        selectedModelType = model
+        print("Updating model to: \(model.displayName)")
+        modelManager.setModel(model)
     }
 
     private var hasScreenRecordingPermission: Bool {
@@ -103,10 +55,6 @@ class ScreenshotManager: ObservableObject {
             self.status = .cancelled
             self.statusWindow.show(withStatus: .cancelled, onCancel: nil)
         }
-    }
-
-    private var currentOCRService: OCRService {
-        useVisionKit ? visionKitOCR : geminiOCR
     }
 
     func initiateScreenshot() {
@@ -199,8 +147,14 @@ class ScreenshotManager: ObservableObject {
                     return
                 }
 
-                // Process the image with the selected OCR service
-                let extractedText = try await currentOCRService.performOCR(imageData: imageData)
+                // Get the system prompt
+                let systemPrompt =
+                    UserDefaults.standard.string(forKey: "systemPrompt")
+                    ?? generateOCRSystemPrompt()
+
+                // Process the image with the selected model
+                let extractedText = try await modelManager.processImage(
+                    imageData, withCustomPrompt: systemPrompt)
 
                 // Check for cancellation after receiving response
                 if Task.isCancelled {
@@ -230,33 +184,28 @@ class ScreenshotManager: ObservableObject {
                     self.status = .success
                     self.statusWindow.show(withStatus: .success, onCancel: nil)
                 }
-            } catch OCRError.noTextDetected {
+            } catch VisionKitError.noTextDetected, GeminiError.noTextDetected {
                 await MainActor.run {
                     self.isProcessing = false
                     self.status = .error("No text detected")
                     self.statusWindow.show(
                         withStatus: .error("No text detected in image"), onCancel: nil)
                 }
-            } catch OCRError.recognitionFailed(let message) {
+            } catch VisionKitError.recognitionFailed(let message),
+                GeminiError.generateContentFailed(let message)
+            {
                 await MainActor.run {
                     self.isProcessing = false
                     self.status = .error(message)
                     self.statusWindow.show(
                         withStatus: .error("Recognition failed: \(message)"), onCancel: nil)
                 }
-            } catch OCRError.invalidImageData {
+            } catch VisionKitError.invalidImageData, GeminiError.invalidResponse {
                 await MainActor.run {
                     self.isProcessing = false
                     self.status = .error("Invalid image data")
                     self.statusWindow.show(
                         withStatus: .error("Invalid image data"), onCancel: nil)
-                }
-            } catch GeminiError.noTextDetected {
-                await MainActor.run {
-                    self.isProcessing = false
-                    self.status = .error("No text detected")
-                    self.statusWindow.show(
-                        withStatus: .error("No text detected in image"), onCancel: nil)
                 }
             } catch GeminiError.uploadFailed(let message) {
                 await MainActor.run {
@@ -265,12 +214,12 @@ class ScreenshotManager: ObservableObject {
                     self.statusWindow.show(
                         withStatus: .error("Upload failed: \(message)"), onCancel: nil)
                 }
-            } catch GeminiError.generateContentFailed(let message) {
+            } catch GeminiError.invalidJSON {
                 await MainActor.run {
                     self.isProcessing = false
-                    self.status = .error(message)
+                    self.status = .error("Invalid response format")
                     self.statusWindow.show(
-                        withStatus: .error("Content generation failed: \(message)"), onCancel: nil)
+                        withStatus: .error("Invalid response format"), onCancel: nil)
                 }
             } catch {
                 // Handle task cancellation

@@ -1,6 +1,5 @@
 import Foundation
 
-// MARK: - Errors
 enum GeminiError: Error {
     case uploadFailed(String)
     case generateContentFailed(String)
@@ -9,32 +8,6 @@ enum GeminiError: Error {
     case noTextDetected
 }
 
-// MARK: - Models
-enum GeminiModel: String, CaseIterable {
-    case pro = "gemini-2.0-pro-exp-02-05"
-    case flashLite = "gemini-2.0-flash-lite"
-    case flash = "gemini-2.0-flash"
-
-    var displayName: String {
-        switch self {
-        case .pro: return "Gemini 2.0 Pro Experimental 02-05"
-        case .flashLite: return "Gemini 2.0 Flash-Lite"
-        case .flash: return "Gemini 2.0 Flash"
-        }
-    }
-
-    var iconName: String {
-        switch self {
-        case .pro: return "brain.fill"  // Most advanced/capable
-        case .flashLite: return "bolt.fill"  // Fastest/smallest
-        case .flash: return "star.fill"  // Standard/balanced
-        }
-    }
-
-    static var `default`: GeminiModel { .flash }
-}
-
-// MARK: - Response Types
 struct GenerationResponse: Codable {
     let candidates: [Candidate]
 
@@ -57,13 +30,11 @@ struct ExtractedContent: Codable {
     let hasText: Bool
 }
 
-// MARK: - GeminiClient
 final class GeminiClient: @unchecked Sendable {
-    // MARK: - Properties
     private let apiKey: String
     private var model: String
     private let session: URLSession
-    private let lock = NSLock()  // Add a lock for thread safety
+    private let lock = NSLock()
     private var _activeSessionTask: URLSessionDataTask?
 
     // Thread-safe access to activeSessionTask
@@ -80,25 +51,22 @@ final class GeminiClient: @unchecked Sendable {
         }
     }
 
-    // MARK: - Constants
     private enum Constants {
         static let baseURL = "https://generativelanguage.googleapis.com"
         static let generateEndpoint = "/v1beta/models"
         static let mimeType = "image/png"
     }
 
-    // MARK: - Initialization
     init(apiKey: String) {
         self.apiKey = apiKey
-        self.model = GeminiModel.default.rawValue
+        self.model = OCRModelType.geminiFlash.rawValue
         self.session = .shared
     }
 
-    // MARK: - Public Methods
-    func setModel(_ model: GeminiModel) {
+    func setModelString(_ modelString: String) {
         lock.lock()
         defer { lock.unlock() }
-        self.model = model.rawValue
+        self.model = modelString
     }
 
     func processImage(_ imageData: Data, withCustomPrompt customPrompt: String? = nil) async throws
@@ -119,10 +87,8 @@ final class GeminiClient: @unchecked Sendable {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            // Convert image data to base64
             let base64Image = imageData.base64EncodedString()
 
-            // Print the model being used for this API call
             print("Making Gemini API request using model: \(model)")
 
             let promptText = customPrompt ?? generateOCRSystemPrompt()
@@ -183,7 +149,6 @@ final class GeminiClient: @unchecked Sendable {
                             return
                         }
 
-                        // Handle other errors
                         if let error = error {
                             continuation.resume(
                                 throwing: GeminiError.uploadFailed(
@@ -221,7 +186,6 @@ final class GeminiClient: @unchecked Sendable {
                     task.resume()
                 }
 
-            // Process the data after we've successfully received it
             print(
                 "Gemini API response received with status code: \(resultData.response.statusCode)")
             return try self.parseGenerationResponse(from: resultData.data)
@@ -234,7 +198,6 @@ final class GeminiClient: @unchecked Sendable {
         }
     }
 
-    // MARK: - Private Methods
     private func parseGenerationResponse(from data: Data) throws -> String {
         print("Parsing Gemini API response")
         let response = try JSONDecoder().decode(GenerationResponse.self, from: data)
@@ -243,11 +206,9 @@ final class GeminiClient: @unchecked Sendable {
             throw GeminiError.invalidJSON
         }
 
-        // Parse the structured JSON response
         let jsonData = jsonString.data(using: .utf8)!
         let extractedContent = try JSONDecoder().decode(ExtractedContent.self, from: jsonData)
 
-        // Check if text was detected
         guard extractedContent.hasText else {
             print("No text detected in the image")
             throw GeminiError.noTextDetected
