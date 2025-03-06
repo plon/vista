@@ -6,14 +6,14 @@ class SettingsWindow {
     private var windowController: NSWindowController?
     private var initialTab: String = "General"
 
-    func show(keyboardManager: KeyboardShortcutManager) {
+    func show(keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager) {
         if windowController == nil {
             let window = createWindow()
-            setupWindowContent(window: window, keyboardManager: keyboardManager)
+            setupWindowContent(window: window, keyboardManager: keyboardManager, screenshotManager: screenshotManager)
 
             windowController = NSWindowController(window: window)
         } else if let window = windowController?.window {
-            setupWindowContent(window: window, keyboardManager: keyboardManager)
+            setupWindowContent(window: window, keyboardManager: keyboardManager, screenshotManager: screenshotManager)
         }
 
         windowController?.window?.center()
@@ -37,7 +37,7 @@ class SettingsWindow {
         return window
     }
 
-    private func setupWindowContent(window: NSWindow, keyboardManager: KeyboardShortcutManager) {
+    private func setupWindowContent(window: NSWindow, keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager) {
         let visualEffectView = NSVisualEffectView()
         visualEffectView.material = .sidebar
         visualEffectView.state = .active
@@ -46,7 +46,7 @@ class SettingsWindow {
 
         let hostingView = NSHostingView(
             rootView:
-                SettingsContainerView(keyboardManager: keyboardManager) { newTitle in
+                SettingsContainerView(keyboardManager: keyboardManager, screenshotManager: screenshotManager) { newTitle in
                     window.title = newTitle
                 }
         )
@@ -90,11 +90,13 @@ struct CustomSidebarLabelStyle: LabelStyle {
 
 struct SettingsContainerView: View {
     @ObservedObject var keyboardManager: KeyboardShortcutManager
+    @ObservedObject var screenshotManager: ScreenshotManager
     @State private var selectedTab: String = "General"
     var onTitleChange: (String) -> Void
 
-    init(keyboardManager: KeyboardShortcutManager, onTitleChange: @escaping (String) -> Void) {
+    init(keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager, onTitleChange: @escaping (String) -> Void) {
         self.keyboardManager = keyboardManager
+        self.screenshotManager = screenshotManager
         self.onTitleChange = onTitleChange
     }
 
@@ -132,6 +134,7 @@ struct SettingsContainerView: View {
                     GeneralSettingsView()
                 case "Output":
                     OutputSettingsView()
+                        .environmentObject(screenshotManager)
                 case "Shortcuts":
                     ShortcutSettingsView(keyboardManager: keyboardManager)
                 default:

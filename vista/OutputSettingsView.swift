@@ -67,6 +67,8 @@ struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
     @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
+    
+    @EnvironmentObject private var screenshotManager: ScreenshotManager
 
     // Text Formatting
     @AppStorage("prettyFormatting") private var prettyFormatting = false
@@ -87,7 +89,6 @@ struct OutputSettingsView: View {
     @State private var generatedPrompt: String = ""
 
     @State private var showingResetConfirmation = false
-    @State private var previousModelType: OCRModelType = OCRModelType.default
 
     private var isSettingsDisabled: Bool {
         isCustomMode || selectedModelType == .visionKit
@@ -103,6 +104,7 @@ struct OutputSettingsView: View {
                             helpText:
                                 "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
                         ) {
+                            // Simple picker with direct binding
                             Picker("", selection: $selectedModelType) {
                                 Group {
                                     Text("Gemini Flash").tag(OCRModelType.geminiFlash)
@@ -114,16 +116,12 @@ struct OutputSettingsView: View {
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .onChange(of: selectedModelType) { newValue in
-                                let wasVisionKit = previousModelType == .visionKit
-                                let isNowVisionKit = newValue == .visionKit
-
-                                if !wasVisionKit && !isNowVisionKit {
-                                    // Update system prompt when switching between Gemini models
+                            .onChange(of: selectedModelType) { newModel in
+                                screenshotManager.updateModel(newModel)
+                                
+                                if newModel != .visionKit {
                                     updateSystemPrompt()
                                 }
-
-                                previousModelType = newValue
                             }
                         }
                     }

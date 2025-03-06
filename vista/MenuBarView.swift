@@ -57,7 +57,7 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
 
             Button("Settings...") {
-                SettingsWindow.shared.show(keyboardManager: keyboardManager)
+                SettingsWindow.shared.show(keyboardManager: keyboardManager, screenshotManager: screenshotManager)
             }
             .keyboardShortcut(",", modifiers: .command)
 
