@@ -86,28 +86,11 @@ struct OutputSettingsView: View {
     @AppStorage("systemPrompt") private var systemPrompt = ""
     @State private var generatedPrompt: String = ""
 
-    // Store previous Gemini settings
-    @State private var geminiSettings = GeminiSettings()
-
     @State private var showingResetConfirmation = false
     @State private var previousModelType: OCRModelType = OCRModelType.default
 
     private var isSettingsDisabled: Bool {
         isCustomMode || selectedModelType == .visionKit
-    }
-
-    // Structure to store Gemini settings
-    private struct GeminiSettings {
-        var formatType = "plain_text"
-        var prettyFormatting = false
-        var originalFormatting = true
-        var outputLanguage = ""
-        var latexMath = true
-        var spellCheck = false
-        var lowConfidenceHighlighting = false
-        var contextualGrouping = false
-        var accessibilityAltText = false
-        var smartContext = false
     }
 
     var body: some View {
@@ -135,35 +118,8 @@ struct OutputSettingsView: View {
                                 let wasVisionKit = previousModelType == .visionKit
                                 let isNowVisionKit = newValue == .visionKit
 
-                                if isNowVisionKit && !wasVisionKit {
-                                    // Store current Gemini settings before switching to VisionKit
-                                    geminiSettings = GeminiSettings(
-                                        formatType: formatType,
-                                        prettyFormatting: prettyFormatting,
-                                        originalFormatting: originalFormatting,
-                                        outputLanguage: outputLanguage,
-                                        latexMath: latexMath,
-                                        spellCheck: spellCheck,
-                                        lowConfidenceHighlighting: lowConfidenceHighlighting,
-                                        contextualGrouping: contextualGrouping,
-                                        accessibilityAltText: accessibilityAltText,
-                                        smartContext: smartContext
-                                    )
-                                    // Switch to VisionKit settings
-                                    resetForVisionKit()
-                                } else if wasVisionKit && !isNowVisionKit {
-                                    // Restore previous Gemini settings when switching from VisionKit to any Gemini model
-                                    formatType = geminiSettings.formatType
-                                    prettyFormatting = geminiSettings.prettyFormatting
-                                    originalFormatting = geminiSettings.originalFormatting
-                                    outputLanguage = geminiSettings.outputLanguage
-                                    latexMath = geminiSettings.latexMath
-                                    spellCheck = geminiSettings.spellCheck
-                                    lowConfidenceHighlighting =
-                                        geminiSettings.lowConfidenceHighlighting
-                                    contextualGrouping = geminiSettings.contextualGrouping
-                                    accessibilityAltText = geminiSettings.accessibilityAltText
-                                    smartContext = geminiSettings.smartContext
+                                if !wasVisionKit && !isNowVisionKit {
+                                    // Update system prompt when switching between Gemini models
                                     updateSystemPrompt()
                                 }
 
@@ -402,7 +358,7 @@ struct OutputSettingsView: View {
     }
 
     private func updateSystemPrompt() {
-        if !isCustomMode {
+        if !isCustomMode && selectedModelType != .visionKit {
             generatedPrompt = generateOCRSystemPrompt(
                 formatType: formatType,
                 prettyFormatting: prettyFormatting,
@@ -445,23 +401,5 @@ struct OutputSettingsView: View {
 
         // Regenerate the system prompt based on default settings
         updateSystemPrompt()
-    }
-
-    private func resetForVisionKit() {
-        // Reset format to plain text when using VisionKit
-        formatType = "plain_text"
-
-        // Disable all formatting options
-        prettyFormatting = false
-        originalFormatting = false
-        outputLanguage = ""
-        latexMath = false
-
-        // Disable intelligence features
-        spellCheck = false
-        contextualGrouping = false
-        smartContext = false
-        accessibilityAltText = false
-        lowConfidenceHighlighting = false
     }
 }
