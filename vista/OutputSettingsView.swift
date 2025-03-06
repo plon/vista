@@ -67,7 +67,7 @@ struct OutputSettingsView: View {
     // Format settings
     @AppStorage("formatType") private var formatType = "plain_text"
     @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
-    
+
     @EnvironmentObject private var screenshotManager: ScreenshotManager
 
     // Text Formatting
@@ -98,9 +98,9 @@ struct OutputSettingsView: View {
         VSplitView {
             ScrollView {
                 Form {
-                    SettingsSection(title: "OCR Provider", isDisabled: false) {
+                    SettingsSection(title: "Model", isDisabled: false) {
                         InputWithHelp(
-                            label: "OCR Provider",
+                            label: "OCR Model",
                             helpText:
                                 "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
                         ) {
@@ -118,7 +118,7 @@ struct OutputSettingsView: View {
                             .pickerStyle(.menu)
                             .onChange(of: selectedModelType) { newModel in
                                 screenshotManager.updateModel(newModel)
-                                
+
                                 if newModel != .visionKit {
                                     updateSystemPrompt()
                                 }
