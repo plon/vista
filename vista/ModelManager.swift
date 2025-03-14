@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Vision
 
 protocol OCRModel {
     var displayName: String { get }
@@ -90,5 +91,19 @@ class ModelManager: ObservableObject {
         case .visionKit:
             return try await visionKitClient.processImage(imageData, withCustomPrompt: customPrompt)
         }
+    }
+
+    func updateVisionKitClient(
+        recognitionLevel: VNRequestTextRecognitionLevel? = nil,
+        recognitionLanguages: [String]? = nil,
+        usesLanguageCorrection: Bool? = nil,
+        customWords: [String]? = nil
+    ) {
+        visionKitClient.updateConfiguration(
+            recognitionLevel: recognitionLevel,
+            recognitionLanguages: recognitionLanguages,
+            usesLanguageCorrection: usesLanguageCorrection,
+            customWords: customWords
+        )
     }
 }

@@ -9,8 +9,46 @@ enum VisionKitError: Error {
 }
 
 final class VisionKitClient: @unchecked Sendable {
-    init() {
-        // No initialization needed for VisionKit
+    // Configuration properties
+    private var recognitionLevel: VNRequestTextRecognitionLevel = .accurate
+    private var recognitionLanguages: [String] = []
+    private var usesLanguageCorrection: Bool = true
+    private var customWords: [String] = []
+
+    init(
+        recognitionLevel: VNRequestTextRecognitionLevel = .accurate,
+        recognitionLanguages: [String] = [],
+        usesLanguageCorrection: Bool = true,
+        customWords: [String] = []
+    ) {
+        self.recognitionLevel = recognitionLevel
+        self.recognitionLanguages = recognitionLanguages
+        self.usesLanguageCorrection = usesLanguageCorrection
+        self.customWords = customWords
+    }
+
+    // Method to update configuration
+    func updateConfiguration(
+        recognitionLevel: VNRequestTextRecognitionLevel? = nil,
+        recognitionLanguages: [String]? = nil,
+        usesLanguageCorrection: Bool? = nil,
+        customWords: [String]? = nil
+    ) {
+        if let recognitionLevel = recognitionLevel {
+            self.recognitionLevel = recognitionLevel
+        }
+
+        if let recognitionLanguages = recognitionLanguages {
+            self.recognitionLanguages = recognitionLanguages
+        }
+
+        if let usesLanguageCorrection = usesLanguageCorrection {
+            self.usesLanguageCorrection = usesLanguageCorrection
+        }
+
+        if let customWords = customWords {
+            self.customWords = customWords
+        }
     }
 
     func processImage(_ imageData: Data, withCustomPrompt customPrompt: String? = nil) async throws
@@ -26,7 +64,19 @@ final class VisionKitClient: @unchecked Sendable {
 
         let requestHandler = VNImageRequestHandler(cgImage: cgImage)
         let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
+
+        // Configure the request with our settings
+        request.recognitionLevel = self.recognitionLevel
+
+        if !self.recognitionLanguages.isEmpty {
+            request.recognitionLanguages = self.recognitionLanguages
+        }
+
+        request.usesLanguageCorrection = self.usesLanguageCorrection
+
+        if !self.customWords.isEmpty {
+            request.customWords = self.customWords
+        }
 
         do {
             try requestHandler.perform([request])

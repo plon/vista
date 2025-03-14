@@ -44,6 +44,20 @@ class ScreenshotManager: ObservableObject {
         modelManager.setModel(model)
     }
 
+    func updateVisionKitSettings(
+        recognitionLevel: VNRequestTextRecognitionLevel? = nil,
+        recognitionLanguages: [String]? = nil,
+        usesLanguageCorrection: Bool? = nil,
+        customWords: [String]? = nil
+    ) {
+        modelManager.updateVisionKitClient(
+            recognitionLevel: recognitionLevel,
+            recognitionLanguages: recognitionLanguages,
+            usesLanguageCorrection: usesLanguageCorrection,
+            customWords: customWords
+        )
+    }
+
     private var hasScreenRecordingPermission: Bool {
         CGPreflightScreenCaptureAccess()
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Vision
 
 struct InputWithHelp<Content: View>: View {
     var label: String
@@ -64,34 +65,41 @@ struct SettingsSection<Content: View>: View {
 }
 
 struct OutputSettingsView: View {
-    // Format settings
-    @AppStorage("formatType") private var formatType = "plain_text"
+    // Model information
     @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
-
     @EnvironmentObject private var screenshotManager: ScreenshotManager
 
-    // Text Formatting
+    // Format settings (Gemini only)
+    @AppStorage("formatType") private var formatType = "plain_text"
+
+    // Text Formatting (Gemini only)
     @AppStorage("prettyFormatting") private var prettyFormatting = false
     @AppStorage("originalFormatting") private var originalFormatting = true
     @AppStorage("outputLanguage") private var outputLanguage = ""
     @AppStorage("latexMath") private var latexMath = true
 
-    // Intelligence options
+    // Intelligence options (Gemini only)
     @AppStorage("spellCheck") private var spellCheck = false
     @AppStorage("lowConfidenceHighlighting") private var lowConfidenceHighlighting = false
     @AppStorage("contextualGrouping") private var contextualGrouping = false
     @AppStorage("accessibilityAltText") private var accessibilityAltText = false
     @AppStorage("smartContext") private var smartContext = false
 
+    // VisionKit specific settings
+    @AppStorage("visionKitRecognitionLevel") private var visionKitRecognitionLevel = "accurate"
+    @AppStorage("visionKitUsesLanguageCorrection") private var visionKitUsesLanguageCorrection =
+        true
+    @State private var visionKitLanguages: [String] = []
+    @State private var visionKitCustomWords: String = ""
+
     // Custom mode
     @AppStorage("isCustomMode") private var isCustomMode = false
     @AppStorage("systemPrompt") private var systemPrompt = ""
     @State private var generatedPrompt: String = ""
-
     @State private var showingResetConfirmation = false
 
     private var isSettingsDisabled: Bool {
-        isCustomMode || selectedModelType == .visionKit
+        isCustomMode && selectedModelType.isGeminiModel
     }
 
     var body: some View {
@@ -104,7 +112,6 @@ struct OutputSettingsView: View {
                             helpText:
                                 "Choose between Gemini (more intelligent, requires internet) or VisionKit (native macOS, works offline)"
                         ) {
-                            // Simple picker with direct binding
                             Picker("", selection: $selectedModelType) {
                                 Group {
                                     Text("Gemini Flash").tag(OCRModelType.geminiFlash)
@@ -119,142 +126,210 @@ struct OutputSettingsView: View {
                             .onChange(of: selectedModelType) { newModel in
                                 screenshotManager.updateModel(newModel)
 
-                                if newModel != .visionKit {
+                                if newModel.isGeminiModel && !isCustomMode {
                                     updateSystemPrompt()
                                 }
                             }
                         }
                     }
 
-                    SettingsSection(title: "Output Format", isDisabled: isSettingsDisabled) {
-                        InputWithHelp(
-                            label: "Output Format",
-                            helpText: "Choose the format for the processed text output"
-                        ) {
-                            Picker("", selection: $formatType) {
-                                Text("Plain Text").tag("plain_text")
-                                Text("Markdown").tag("markdown")
-                                Text("HTML").tag("html")
-                                Text("JSON").tag("json")
-                                Text("LaTeX").tag("latex")
-                                Text("RTF").tag("rtf")
-                                Text("XML").tag("xml")
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .disabled(isSettingsDisabled)
-                            .onChange(of: formatType) { _ in updateSystemPrompt() }
-                        }
-                    }
-
-                    SettingsSection(title: "Text Formatting", isDisabled: isSettingsDisabled) {
-                        VStack(spacing: 8) {
-                            SettingsToggle(
-                                label: "Use pretty formatting",
-                                helpText: "Improves readability by adjusting paragraphs and layout",
-                                isOn: $prettyFormatting,
-                                isDisabled: isSettingsDisabled
-                            ) { newValue in
-                                if newValue {
-                                    originalFormatting = false
-                                }
-                                updateSystemPrompt()
-                            }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Preserve original formatting",
-                                helpText: "Maintains exact layout, indentation, and line breaks",
-                                isOn: $originalFormatting,
-                                isDisabled: isSettingsDisabled
-                            ) { newValue in
-                                if newValue {
-                                    prettyFormatting = false
-                                }
-                                updateSystemPrompt()
-                            }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Convert math equations to LaTeX",
-                                helpText: "Represents mathematical formulas using LaTeX formatting",
-                                isOn: $latexMath,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-
-                            Divider()
-
+                    // Show Gemini-specific settings
+                    if selectedModelType.isGeminiModel {
+                        SettingsSection(title: "Output Format", isDisabled: isSettingsDisabled) {
                             InputWithHelp(
-                                label: "Output language:",
-                                helpText:
-                                    "Leave blank to keep original language, or enter a language to translate to"
+                                label: "Output Format",
+                                helpText: "Choose the format for the processed text output"
                             ) {
-                                TextField("", text: $outputLanguage)
+                                Picker("", selection: $formatType) {
+                                    Text("Plain Text").tag("plain_text")
+                                    Text("Markdown").tag("markdown")
+                                    Text("HTML").tag("html")
+                                    Text("JSON").tag("json")
+                                    Text("LaTeX").tag("latex")
+                                    Text("RTF").tag("rtf")
+                                    Text("XML").tag("xml")
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .disabled(isSettingsDisabled)
+                                .onChange(of: formatType) { _ in updateSystemPrompt() }
+                            }
+                        }
+
+                        SettingsSection(title: "Text Formatting", isDisabled: isSettingsDisabled) {
+                            VStack(spacing: 8) {
+                                SettingsToggle(
+                                    label: "Use pretty formatting",
+                                    helpText:
+                                        "Improves readability by adjusting paragraphs and layout",
+                                    isOn: $prettyFormatting,
+                                    isDisabled: isSettingsDisabled
+                                ) { newValue in
+                                    if newValue {
+                                        originalFormatting = false
+                                    }
+                                    updateSystemPrompt()
+                                }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Preserve original formatting",
+                                    helpText:
+                                        "Maintains exact layout, indentation, and line breaks",
+                                    isOn: $originalFormatting,
+                                    isDisabled: isSettingsDisabled
+                                ) { newValue in
+                                    if newValue {
+                                        prettyFormatting = false
+                                    }
+                                    updateSystemPrompt()
+                                }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Convert math equations to LaTeX",
+                                    helpText:
+                                        "Represents mathematical formulas using LaTeX formatting",
+                                    isOn: $latexMath,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+
+                                Divider()
+
+                                InputWithHelp(
+                                    label: "Output language:",
+                                    helpText:
+                                        "Leave blank to keep original language, or enter a language to translate to"
+                                ) {
+                                    TextField("", text: $outputLanguage)
+                                        .textFieldStyle(.roundedBorder)
+                                        .disabled(isSettingsDisabled)
+                                        .onChange(of: outputLanguage) { _ in updateSystemPrompt() }
+                                }
+                            }
+                        }
+
+                        SettingsSection(title: "Intelligence", isDisabled: isSettingsDisabled) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SettingsToggle(
+                                    label: "Spell check",
+                                    helpText: "Automatically applies spell correction to the text",
+                                    isOn: $spellCheck,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Group related content",
+                                    helpText:
+                                        "Intelligently groups related content into cohesive blocks",
+                                    isOn: $contextualGrouping,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Extract spatial context",
+                                    helpText:
+                                        "Includes annotations and describes spatial relationships",
+                                    isOn: $smartContext,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Generate alt text for images",
+                                    helpText: "Creates descriptive text for images or graphics",
+                                    isOn: $accessibilityAltText,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Highlight uncertain text",
+                                    helpText: "Marks low-confidence sections with [?]",
+                                    isOn: $lowConfidenceHighlighting,
+                                    isDisabled: isSettingsDisabled
+                                ) { _ in updateSystemPrompt() }
+                            }
+                        }
+                    }
+                    // Show VisionKit-specific settings
+                    else {
+                        SettingsSection(title: "Recognition Settings", isDisabled: false) {
+                            VStack(spacing: 8) {
+                                InputWithHelp(
+                                    label: "Recognition Level",
+                                    helpText:
+                                        "Fast is quicker but less accurate. Accurate is more precise but slower."
+                                ) {
+                                    Picker("", selection: $visionKitRecognitionLevel) {
+                                        Text("Fast").tag("fast")
+                                        Text("Accurate").tag("accurate")
+                                    }
+                                    .labelsHidden()
+                                    .pickerStyle(.menu)
+                                    .onChange(of: visionKitRecognitionLevel) { newValue in
+                                        let level: VNRequestTextRecognitionLevel =
+                                            newValue == "accurate" ? .accurate : .fast
+                                        screenshotManager.updateVisionKitSettings(
+                                            recognitionLevel: level
+                                        )
+                                    }
+                                }
+
+                                Divider()
+
+                                SettingsToggle(
+                                    label: "Use language correction",
+                                    helpText:
+                                        "Apply spelling and grammar corrections to recognized text",
+                                    isOn: $visionKitUsesLanguageCorrection,
+                                    isDisabled: false
+                                ) { newValue in
+                                    screenshotManager.updateVisionKitSettings(
+                                        usesLanguageCorrection: newValue
+                                    )
+                                }
+
+                                Divider()
+
+                                InputWithHelp(
+                                    label: "Custom Words",
+                                    helpText:
+                                        "Specialized terms or domain-specific vocabulary to improve recognition (comma separated)"
+                                ) {
+                                    TextField(
+                                        "", text: $visionKitCustomWords
+                                    )
                                     .textFieldStyle(.roundedBorder)
-                                    .disabled(isSettingsDisabled)
-                                    .onChange(of: outputLanguage) { _ in updateSystemPrompt() }
+                                    .onChange(of: visionKitCustomWords) { newValue in
+                                        let words = newValue.split(separator: ",")
+                                            .map {
+                                                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            }
+                                            .filter { !$0.isEmpty }
+
+                                        screenshotManager.updateVisionKitSettings(
+                                            customWords: words
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
-                    SettingsSection(title: "Intelligence", isDisabled: isSettingsDisabled) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            SettingsToggle(
-                                label: "Spell check",
-                                helpText: "Automatically applies spell correction to the text",
-                                isOn: $spellCheck,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Group related content",
-                                helpText:
-                                    "Intelligently groups related content into cohesive blocks",
-                                isOn: $contextualGrouping,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Extract spatial context",
-                                helpText:
-                                    "Includes annotations and describes spatial relationships",
-                                isOn: $smartContext,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Generate alt text for images",
-                                helpText: "Creates descriptive text for images or graphics",
-                                isOn: $accessibilityAltText,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-
-                            Divider()
-
-                            SettingsToggle(
-                                label: "Highlight uncertain text",
-                                helpText: "Marks low-confidence sections with [?]",
-                                isOn: $lowConfidenceHighlighting,
-                                isDisabled: isSettingsDisabled
-                            ) { _ in updateSystemPrompt() }
-                        }
-                    }
-
-                    Section {
-                        EmptyView()
-                    }
                     Section {
                         EmptyView()
                     }
 
+                    // Reset button section
                     Section {
                         Button(action: { showingResetConfirmation = true }) {
                             HStack {
@@ -291,7 +366,7 @@ struct OutputSettingsView: View {
 
                     Spacer()
 
-                    if isCustomMode && selectedModelType != .visionKit {
+                    if isCustomMode && selectedModelType.isGeminiModel {
                         Button(action: resetToGenerated) {
                             Label("Reset to Generated", systemImage: "arrow.counterclockwise")
                                 .font(.subheadline)
@@ -302,7 +377,7 @@ struct OutputSettingsView: View {
                     }
                 }
 
-                if selectedModelType == .visionKit {
+                if !selectedModelType.isGeminiModel {
                     HStack(spacing: 12) {
                         Image(systemName: "info.circle")
                             .foregroundStyle(.secondary)
@@ -347,16 +422,27 @@ struct OutputSettingsView: View {
             .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
         }
         .onAppear {
-            if systemPrompt.isEmpty {
-                updateSystemPrompt()
-            } else if !isCustomMode {
-                updateSystemPrompt()
+            if selectedModelType.isGeminiModel {
+                if systemPrompt.isEmpty {
+                    updateSystemPrompt()
+                } else if !isCustomMode {
+                    updateSystemPrompt()
+                }
             }
+
+            // Initialize VisionKit settings
+            let recognitionLevel: VNRequestTextRecognitionLevel =
+                visionKitRecognitionLevel == "accurate" ? .accurate : .fast
+
+            screenshotManager.updateVisionKitSettings(
+                recognitionLevel: recognitionLevel,
+                usesLanguageCorrection: visionKitUsesLanguageCorrection
+            )
         }
     }
 
     private func updateSystemPrompt() {
-        if !isCustomMode && selectedModelType != .visionKit {
+        if !isCustomMode && selectedModelType.isGeminiModel {
             generatedPrompt = generateOCRSystemPrompt(
                 formatType: formatType,
                 prettyFormatting: prettyFormatting,
@@ -379,25 +465,32 @@ struct OutputSettingsView: View {
     }
 
     private func resetToDefaults() {
-        formatType = "plain_text"
+        if selectedModelType.isGeminiModel {
+            // Reset Gemini settings
+            formatType = "plain_text"
+            prettyFormatting = false
+            originalFormatting = true
+            outputLanguage = ""
+            latexMath = true
+            spellCheck = false
+            lowConfidenceHighlighting = false
+            contextualGrouping = false
+            accessibilityAltText = false
+            smartContext = false
+            isCustomMode = false
+            updateSystemPrompt()
+        } else {
+            // Reset VisionKit settings
+            visionKitRecognitionLevel = "accurate"
+            visionKitUsesLanguageCorrection = true
+            visionKitCustomWords = ""
 
-        // Reset text formatting
-        prettyFormatting = false
-        originalFormatting = true
-        outputLanguage = ""
-        latexMath = true
-
-        // Reset intelligence options
-        spellCheck = false
-        lowConfidenceHighlighting = false
-        contextualGrouping = false
-        accessibilityAltText = false
-        smartContext = false
-
-        // Reset custom mode
-        isCustomMode = false
-
-        // Regenerate the system prompt based on default settings
-        updateSystemPrompt()
+            // Update VisionKit client with default settings
+            screenshotManager.updateVisionKitSettings(
+                recognitionLevel: .accurate,
+                usesLanguageCorrection: true,
+                customWords: []
+            )
+        }
     }
 }
