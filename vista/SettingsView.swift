@@ -9,11 +9,15 @@ class SettingsWindow {
     func show(keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager) {
         if windowController == nil {
             let window = createWindow()
-            setupWindowContent(window: window, keyboardManager: keyboardManager, screenshotManager: screenshotManager)
+            setupWindowContent(
+                window: window, keyboardManager: keyboardManager,
+                screenshotManager: screenshotManager)
 
             windowController = NSWindowController(window: window)
         } else if let window = windowController?.window {
-            setupWindowContent(window: window, keyboardManager: keyboardManager, screenshotManager: screenshotManager)
+            setupWindowContent(
+                window: window, keyboardManager: keyboardManager,
+                screenshotManager: screenshotManager)
         }
 
         windowController?.window?.center()
@@ -37,7 +41,10 @@ class SettingsWindow {
         return window
     }
 
-    private func setupWindowContent(window: NSWindow, keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager) {
+    private func setupWindowContent(
+        window: NSWindow, keyboardManager: KeyboardShortcutManager,
+        screenshotManager: ScreenshotManager
+    ) {
         let visualEffectView = NSVisualEffectView()
         visualEffectView.material = .sidebar
         visualEffectView.state = .active
@@ -46,7 +53,9 @@ class SettingsWindow {
 
         let hostingView = NSHostingView(
             rootView:
-                SettingsContainerView(keyboardManager: keyboardManager, screenshotManager: screenshotManager) { newTitle in
+                SettingsContainerView(
+                    keyboardManager: keyboardManager, screenshotManager: screenshotManager
+                ) { newTitle in
                     window.title = newTitle
                 }
         )
@@ -94,7 +103,10 @@ struct SettingsContainerView: View {
     @State private var selectedTab: String = "General"
     var onTitleChange: (String) -> Void
 
-    init(keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager, onTitleChange: @escaping (String) -> Void) {
+    init(
+        keyboardManager: KeyboardShortcutManager, screenshotManager: ScreenshotManager,
+        onTitleChange: @escaping (String) -> Void
+    ) {
         self.keyboardManager = keyboardManager
         self.screenshotManager = screenshotManager
         self.onTitleChange = onTitleChange
@@ -150,8 +162,11 @@ struct SettingsContainerView: View {
 struct GeneralSettingsView: View {
     @AppStorage("popupEnabled") private var popupEnabled = true
     @AppStorage("displayTarget") private var displayTarget = "screenshot"
-    @AppStorage("popupSize") private var popupSize = StatusPopupSize.normal.rawValue
+    @AppStorage("popupSize") private var popupSize = StatusPopupSize.large.rawValue
     @AppStorage("hapticFeedbackEnabled") private var hapticFeedbackEnabled = true
+    @AppStorage("resolutionLimitEnabled") private var resolutionLimitEnabled = false  // Default is OFF
+    @AppStorage("maxImageWidth") private var maxImageWidth = 4000.0
+    @AppStorage("maxImageHeight") private var maxImageHeight = 4000.0
     @State private var launchAtLogin: Bool = LaunchAtLoginManager.shared.isEnabled()
 
     var body: some View {
@@ -219,6 +234,64 @@ struct GeneralSettingsView: View {
                     .accessibilityHint(
                         "When enabled, your Mac will give haptic feedback when processing starts and completes"
                     )
+
+                Toggle("Limit image resolution", isOn: $resolutionLimitEnabled)
+                    .accessibilityLabel("Toggle image resolution limit")
+                    .accessibilityHint(
+                        "When enabled, large screenshots will be resized before processing"
+                    )
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Maximum dimensions:")
+                        .foregroundStyle(resolutionLimitEnabled ? .primary : .secondary)
+
+                    // Width control
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Width:")
+                                .foregroundStyle(resolutionLimitEnabled ? .primary : .secondary)
+                            Spacer()
+                            TextField("", value: $maxImageWidth, formatter: NumberFormatter())
+                                .frame(width: 70)
+                                .disabled(!resolutionLimitEnabled)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            Text("px")
+                                .foregroundStyle(resolutionLimitEnabled ? .primary : .secondary)
+                        }
+
+                        Slider(value: $maxImageWidth, in: 100...8000, step: 100)
+                            .disabled(!resolutionLimitEnabled)
+                            .opacity(resolutionLimitEnabled ? 1.0 : 0.5)
+                    }
+
+                    // Height control
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Height:")
+                                .foregroundStyle(resolutionLimitEnabled ? .primary : .secondary)
+                            Spacer()
+                            TextField("", value: $maxImageHeight, formatter: NumberFormatter())
+                                .frame(width: 70)
+                                .disabled(!resolutionLimitEnabled)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            Text("px")
+                                .foregroundStyle(resolutionLimitEnabled ? .primary : .secondary)
+                        }
+
+                        Slider(value: $maxImageHeight, in: 100...8000, step: 100)
+                            .disabled(!resolutionLimitEnabled)
+                            .opacity(resolutionLimitEnabled ? 1.0 : 0.5)
+                    }
+                }
+                .padding(.top, 4)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Maximum image dimensions")
+                .accessibilityHint(
+                    "Set the maximum width and height in pixels for screenshot processing"
+                )
+                .accessibilityValue(
+                    "\(Int(maxImageWidth)) pixels width by \(Int(maxImageHeight)) pixels height")
+
             } header: {
                 Text("Behavior")
                     .foregroundStyle(.secondary)
@@ -231,6 +304,23 @@ struct GeneralSettingsView: View {
         .onAppear {
             // Refresh the state when the view appears
             launchAtLogin = LaunchAtLoginManager.shared.isEnabled()
+
+            // Ensure the default setting for resolution limit is explicitly OFF
+            if UserDefaults.standard.object(forKey: "resolutionLimitEnabled") == nil {
+                resolutionLimitEnabled = false
+                UserDefaults.standard.set(false, forKey: "resolutionLimitEnabled")
+            }
+
+            // Set default values for max width and height if not already set
+            if UserDefaults.standard.object(forKey: "maxImageWidth") == nil {
+                maxImageWidth = 4000.0
+                UserDefaults.standard.set(4000.0, forKey: "maxImageWidth")
+            }
+
+            if UserDefaults.standard.object(forKey: "maxImageHeight") == nil {
+                maxImageHeight = 4000.0
+                UserDefaults.standard.set(4000.0, forKey: "maxImageHeight")
+            }
         }
     }
 }

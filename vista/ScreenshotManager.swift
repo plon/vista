@@ -24,7 +24,6 @@ class ScreenshotManager: ObservableObject {
     private let modelManager: ModelManager
     private let statusWindow = StatusWindowController()
 
-    // Track the active task so we can cancel it
     private var activeTask: Task<Void, Never>?
 
     init() {
@@ -66,7 +65,6 @@ class ScreenshotManager: ObservableObject {
         CGRequestScreenCaptureAccess()
     }
 
-    // Add method to cancel processing
     func cancelProcessing() {
         print("Canceling active processing task")
         activeTask?.cancel()
@@ -99,7 +97,6 @@ class ScreenshotManager: ObservableObject {
                 NSMouseInRect(mouseLocation, screen.frame, false)
             } ?? NSScreen.main
 
-        // Set the active screen
         statusWindow.setActiveScreen(screenWithMouse)
 
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -143,7 +140,14 @@ class ScreenshotManager: ObservableObject {
                 self?.cancelProcessing()
             })
 
-        // Provide haptic feedback that processing has begun if enabled
+        // TO DELETE
+        // Print original image dimensions right at the start
+        if let originalImage = NSImage(data: imageData) {
+            print(
+                "Original image dimensions before processing: \(Int(originalImage.size.width))x\(Int(originalImage.size.height))"
+            )
+        }
+
         let hapticFeedbackEnabled = UserDefaults.standard.bool(forKey: "hapticFeedbackEnabled")
         if hapticFeedbackEnabled {
             Task {
@@ -156,7 +160,6 @@ class ScreenshotManager: ObservableObject {
             }
         }
 
-        // Store the task so we can cancel it later
         activeTask = Task {
             do {
                 // Check for cancellation
@@ -169,14 +172,22 @@ class ScreenshotManager: ObservableObject {
                     return
                 }
 
-                // Get the system prompt
+                let processedImageData = self.resizeImageIfNeeded(imageData)
+
+                // TO DELETE
+                // Print dimensions after resizing
+                if let processedImage = NSImage(data: processedImageData) {
+                    print(
+                        "Image dimensions after resizing: \(Int(processedImage.size.width))x\(Int(processedImage.size.height))"
+                    )
+                }
+
                 let systemPrompt =
                     UserDefaults.standard.string(forKey: "systemPrompt")
                     ?? generateOCRSystemPrompt()
 
-                // Process the image with the selected model
                 let extractedText = try await modelManager.processImage(
-                    imageData, withCustomPrompt: systemPrompt)
+                    processedImageData, withCustomPrompt: systemPrompt)
 
                 // Check for cancellation after receiving response
                 if Task.isCancelled {
@@ -191,7 +202,6 @@ class ScreenshotManager: ObservableObject {
                 await MainActor.run {
                     self.copyToClipboard(extractedText)
 
-                    // Haptic feedback for success if enabled
                     let hapticFeedbackEnabled = UserDefaults.standard.bool(
                         forKey: "hapticFeedbackEnabled")
                     if hapticFeedbackEnabled {
@@ -244,7 +254,6 @@ class ScreenshotManager: ObservableObject {
                         withStatus: .error("Invalid response format"), onCancel: nil)
                 }
             } catch {
-                // Handle task cancellation
                 if error is CancellationError {
                     await MainActor.run {
                         self.isProcessing = false
@@ -298,5 +307,53 @@ class ScreenshotManager: ObservableObject {
             // we just use the plain text representation we already set
             print("Copied \(formatType) to clipboard as plain text")
         }
+    }
+
+    private func resizeImageIfNeeded(_ imageData: Data) -> Data {
+        let resolutionLimitEnabled = UserDefaults.standard.bool(forKey: "resolutionLimitEnabled")
+        if !resolutionLimitEnabled {
+            return imageData
+        }
+
+        // Get the max dimensions from user settings
+        let maxImageWidth = UserDefaults.standard.double(forKey: "maxImageWidth")
+        let maxImageHeight = UserDefaults.standard.double(forKey: "maxImageHeight")
+
+        if maxImageWidth <= 0 || maxImageHeight <= 0 {
+            return imageData
+        }
+
+        guard let image = NSImage(data: imageData) else {
+            return imageData
+        }
+
+        let originalSize = image.size
+        if originalSize.width <= maxImageWidth && originalSize.height <= maxImageHeight {
+            return imageData
+        }
+
+        // Calculate the scaling factor based on both dimensions
+        let widthRatio = maxImageWidth / originalSize.width
+        let heightRatio = maxImageHeight / originalSize.height
+        let scaleFactor = min(widthRatio, heightRatio)
+
+        let newSize = NSSize(
+            width: originalSize.width * scaleFactor,
+            height: originalSize.height * scaleFactor
+        )
+
+        let resizedImage = NSImage(size: newSize)
+        resizedImage.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(in: NSRect(origin: .zero, size: newSize))
+        resizedImage.unlockFocus()
+
+        guard let tiffData = resizedImage.tiffRepresentation,
+            let bitmapImage = NSBitmapImageRep(data: tiffData),
+            let pngData = bitmapImage.representation(using: .png, properties: [:])
+        else {
+            return imageData
+        }
+        return pngData
     }
 }
