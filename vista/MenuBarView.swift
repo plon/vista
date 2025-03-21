@@ -46,8 +46,11 @@ struct MenuBarView: View {
                 Label("Vision Model", systemImage: "sparkles")
             }
             .labelStyle(.titleAndIcon)
-            .onChange(of: selectedModelType) { _ in
-                screenshotManager.updateModel(selectedModelType)
+            .onChange(of: selectedModelType) { newValue in
+                // prevents duplicate updates
+                if screenshotManager.getCurrentModel() != newValue {
+                    screenshotManager.updateModel(newValue)
+                }
             }
 
             Divider()
@@ -57,7 +60,8 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
 
             Button("Settings...") {
-                SettingsWindow.shared.show(keyboardManager: keyboardManager, screenshotManager: screenshotManager)
+                SettingsWindow.shared.show(
+                    keyboardManager: keyboardManager, screenshotManager: screenshotManager)
             }
             .keyboardShortcut(",", modifiers: .command)
 

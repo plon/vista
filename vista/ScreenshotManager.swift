@@ -43,6 +43,10 @@ class ScreenshotManager: ObservableObject {
         modelManager.setModel(model)
     }
 
+    func getCurrentModel() -> OCRModelType {
+        return selectedModelType
+    }
+
     func updateVisionKitSettings(
         recognitionLevel: VNRequestTextRecognitionLevel? = nil,
         recognitionLanguages: [String]? = nil,
