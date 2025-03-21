@@ -4,7 +4,7 @@ import ServiceManagement
 class LaunchAtLoginManager {
     static let shared = LaunchAtLoginManager()
 
-    private let loginItemIdentifier = "com.yourdomain.vista.LaunchHelper"
+    private let loginItemIdentifier = "com.plon.vista.LaunchHelper"
 
     func isEnabled() -> Bool {
         if #available(macOS 13.0, *) {
