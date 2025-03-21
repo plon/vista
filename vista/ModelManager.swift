@@ -57,17 +57,9 @@ class ModelManager: ObservableObject {
         self.geminiClient = GeminiClient(apiKey: apiKey)
         self.visionKitClient = VisionKitClient()
 
-        // Get model from UserDefaults or use default
-        if let modelTypeString = UserDefaults.standard.string(forKey: "selectedModelType"),
-            let modelType = OCRModelType(rawValue: modelTypeString)
-        {
-            self.selectedModel = modelType
-        } else {
-            self.selectedModel = OCRModelType.default
-            UserDefaults.standard.set(OCRModelType.default.rawValue, forKey: "selectedModelType")
-        }
+        let modelTypeString = UserDefaults.standard.string(forKey: "selectedModelType")!
+        self.selectedModel = OCRModelType(rawValue: modelTypeString) ?? OCRModelType.default
 
-        // Set initial model for Gemini client
         if selectedModel.isGeminiModel {
             geminiClient.setModelString(selectedModel.rawValue)
         }

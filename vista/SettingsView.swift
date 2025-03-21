@@ -302,25 +302,7 @@ struct GeneralSettingsView: View {
         .padding(.top, -20)
         .padding(.horizontal, -10)
         .onAppear {
-            // Refresh the state when the view appears
             launchAtLogin = LaunchAtLoginManager.shared.isEnabled()
-
-            // Ensure the default setting for resolution limit is explicitly OFF
-            if UserDefaults.standard.object(forKey: "resolutionLimitEnabled") == nil {
-                resolutionLimitEnabled = false
-                UserDefaults.standard.set(false, forKey: "resolutionLimitEnabled")
-            }
-
-            // Set default values for max width and height if not already set
-            if UserDefaults.standard.object(forKey: "maxImageWidth") == nil {
-                maxImageWidth = 4000.0
-                UserDefaults.standard.set(4000.0, forKey: "maxImageWidth")
-            }
-
-            if UserDefaults.standard.object(forKey: "maxImageHeight") == nil {
-                maxImageHeight = 4000.0
-                UserDefaults.standard.set(4000.0, forKey: "maxImageHeight")
-            }
         }
     }
 }

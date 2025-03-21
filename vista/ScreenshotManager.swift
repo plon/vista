@@ -27,12 +27,6 @@ class ScreenshotManager: ObservableObject {
     private var activeTask: Task<Void, Never>?
 
     init() {
-        // Set default model if not already set in UserDefaults
-        if UserDefaults.standard.string(forKey: "selectedModelType") == nil {
-            UserDefaults.standard.set(
-                OCRModelType.geminiFlash.rawValue, forKey: "selectedModelType")
-        }
-
         self.modelManager = ModelManager(apiKey: "AIzaSyDA7Hk_b6UrgLWyiObL6uZ9MHMasgy8imQ")
         self.modelManager.setModel(selectedModelType)
     }
