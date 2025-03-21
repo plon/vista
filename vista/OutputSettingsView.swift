@@ -366,7 +366,9 @@ struct OutputSettingsView: View {
 
                     Spacer()
 
-                    if isCustomMode && selectedModelType.isGeminiModel {
+                    if isCustomMode && selectedModelType.isGeminiModel
+                        && systemPrompt != generatedPrompt
+                    {
                         Button(action: resetToGenerated) {
                             Label("Reset to Generated", systemImage: "arrow.counterclockwise")
                                 .font(.subheadline)
@@ -406,6 +408,8 @@ struct OutputSettingsView: View {
                         .onChange(of: systemPrompt) { newValue in
                             if !isCustomMode && systemPrompt != generatedPrompt {
                                 isCustomMode = true
+                            } else if systemPrompt == generatedPrompt && isCustomMode {
+                                isCustomMode = false
                             }
                         }
 
