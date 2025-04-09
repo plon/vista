@@ -31,6 +31,7 @@ class DefaultSettings {
             "visionKitRecognitionLevel": "accurate",
             "visionKitUsesLanguageCorrection": true,
             "isCustomMode": false,
+            "geminiApiKey": "",
         ]
 
         UserDefaults.standard.register(defaults: defaults)

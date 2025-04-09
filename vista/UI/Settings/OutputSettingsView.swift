@@ -67,6 +67,7 @@ struct SettingsSection<Content: View>: View {
 struct OutputSettingsView: View {
     // Model information
     @AppStorage("selectedModelType") private var selectedModelType = OCRModelType.default
+    @AppStorage("geminiApiKey") private var geminiApiKey: String = ""
     @EnvironmentObject private var screenshotManager: ScreenshotManager
 
     // Format settings (Gemini only)
@@ -130,6 +131,30 @@ struct OutputSettingsView: View {
                                     updateSystemPrompt()
                                 }
                             }
+                        }
+
+                        if selectedModelType.isGeminiModel {
+                            VStack(alignment: .leading, spacing: 4) {
+                                InputWithHelp(
+                                    label: "Gemini API Key",
+                                    helpText: "Enter your Google AI Studio API key for Gemini models."
+                                ) {
+                                    SecureField("", text: $geminiApiKey)
+                                        .textFieldStyle(.roundedBorder)
+                                        .labelsHidden()
+                                }
+                                if geminiApiKey.isEmpty {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.orange)
+                                        Text("API key is required for Gemini models.")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    }
+                                    .padding(.top, 2)
+                                }
+                            }
+                            .padding(.top, 8)
                         }
                     }
 

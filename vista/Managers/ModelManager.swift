@@ -53,8 +53,8 @@ class ModelManager: ObservableObject {
     private let visionKitClient: VisionKitClient
     @Published var selectedModel: OCRModelType
 
-    init(apiKey: String) {
-        self.geminiClient = GeminiClient(apiKey: apiKey)
+    init() {
+        self.geminiClient = GeminiClient()
         self.visionKitClient = VisionKitClient()
 
         let modelTypeString = UserDefaults.standard.string(forKey: "selectedModelType")!

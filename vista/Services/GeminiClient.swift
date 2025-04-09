@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum GeminiError: Error {
     case uploadFailed(String)
@@ -31,7 +32,7 @@ struct ExtractedContent: Codable {
 }
 
 final class GeminiClient: @unchecked Sendable {
-    private let apiKey: String
+    @AppStorage("geminiApiKey") private var apiKey: String = ""
     private var model: String
     private let session: URLSession
     private let lock = NSLock()
@@ -57,8 +58,7 @@ final class GeminiClient: @unchecked Sendable {
         static let mimeType = "image/png"
     }
 
-    init(apiKey: String) {
-        self.apiKey = apiKey
+    init() {
         self.model = OCRModelType.geminiFlash.rawValue
         self.session = .shared
     }
@@ -77,6 +77,12 @@ final class GeminiClient: @unchecked Sendable {
             let model = lock.withLock { self.model }
             let apiKey = self.apiKey
             let session = self.session
+
+            // Check if API key is present
+            guard !apiKey.isEmpty else {
+                print("Error: Gemini API key is missing.")
+                throw GeminiError.generateContentFailed("API Key not set. Please add it in Settings -> Output.")
+            }
 
             // Create the URL request
             let url = URL(
